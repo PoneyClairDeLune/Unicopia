@@ -1488,6 +1488,8 @@
   "death.attack.unicopia.bat_screech.self": "%1$s s'est effrayé",
   "death.attack.unicopia.bat_screech.player": "%2$s a effrayé %1$s",
   "death.attack.unicopia.bat_screech.item": "%1$s a été effrayé par %2$s en utilisant %3$s",
+  "death.attack.unicopia.rainboom": "%1$s's eardrums were shattered",
+  "death.attack.unicopia.rainboom.player": "%2$s's shattered %1$s's eardrums",
   "death.attack.unicopia.gravity_well_recoil": "%1$s turned into spaghetti",
   "death.attack.unicopia.gravity_well_recoil.player": "%1$s turned into spaghetti by a spell cast by %2$s",
   "death.attack.unicopia.gravity_well_recoil.item": "%1$s transformé en spaghetti par un sort lancé par %2$s en utilisant %3$s",
