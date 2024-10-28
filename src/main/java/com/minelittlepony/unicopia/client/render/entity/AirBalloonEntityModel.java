@@ -6,6 +6,7 @@ import com.minelittlepony.unicopia.entity.mob.AirBalloonEntity;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.model.*;
+import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.entity.model.EntityModel;
 import net.minecraft.client.util.math.MatrixStack;
@@ -24,6 +25,7 @@ public class AirBalloonEntityModel extends EntityModel<AirBalloonEntity> {
     private boolean isSandbags;
 
     private final List<ModelPart> ropes;
+    private final List<ModelPart> struts;
     private final List<ModelPart> sandbags;
 
     public AirBalloonEntityModel(ModelPart root) {
@@ -40,6 +42,11 @@ public class AirBalloonEntityModel extends EntityModel<AirBalloonEntity> {
             );
         } else {
             ropes = List.of();
+        }
+        if (isBurner) {
+            struts = List.of(root.getChild("strut_a"), root.getChild("strut_b"));
+        } else {
+            struts = List.of();
         }
 
         sandbags = isSandbags ? List.of(
@@ -162,6 +169,9 @@ public class AirBalloonEntityModel extends EntityModel<AirBalloonEntity> {
             ropes.forEach(rope -> {
                 rope.visible = lifted;
             });
+            struts.forEach(strut -> {
+                strut.visible = lifted;
+            });
 
             root.pivotX += burnerWiggleProgress * MathHelper.sin((entity.age + tickDelta)) * 2.5F;
             root.pivotX += burnerWiggleProgress * MathHelper.cos((entity.age + tickDelta)) * 2.5F;
@@ -235,10 +245,10 @@ public class AirBalloonEntityModel extends EntityModel<AirBalloonEntity> {
             matrices.push();
             matrices.translate(0, 1 * (1 - inflation), 0);
             matrices.scale(1, MathHelper.lerp(inflation, -0.05F, 1), 1);
-            root.render(matrices, vertexConsumer, light, overlay, color);
+            root.render(matrices, vertexConsumer, light, OverlayTexture.DEFAULT_UV, color);
             matrices.pop();
         } else {
-            root.render(matrices, vertexConsumer, light, overlay, color);
+            root.render(matrices, vertexConsumer, light, OverlayTexture.DEFAULT_UV, color);
         }
     }
 }

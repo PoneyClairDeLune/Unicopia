@@ -5,6 +5,7 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.ShapeContext;
 import net.minecraft.block.entity.FurnaceBlockEntity;
 import net.minecraft.entity.*;
+import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.data.*;
 import net.minecraft.entity.data.DataTracker.Builder;
 import net.minecraft.entity.mob.MobEntity;
@@ -14,11 +15,14 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtList;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.predicate.entity.EntityPredicates;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.sound.SoundEvent;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
@@ -26,6 +30,7 @@ import net.minecraft.util.StringIdentifiable;
 import net.minecraft.util.math.*;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.GameRules;
 import net.minecraft.world.World;
 import net.minecraft.world.event.GameEvent;
 
@@ -57,6 +62,7 @@ import com.minelittlepony.unicopia.item.UItems;
 import com.minelittlepony.unicopia.item.component.BalloonDesignComponent;
 import com.minelittlepony.unicopia.item.component.UDataComponentTypes;
 import com.minelittlepony.unicopia.server.world.WeatherConditions;
+import com.minelittlepony.unicopia.util.serialization.NbtSerialisable;
 import com.minelittlepony.unicopia.util.serialization.PacketCodecUtils;
 import com.terraformersmc.terraform.boat.api.TerraformBoatType;
 
@@ -80,7 +86,8 @@ public class AirBalloonEntity extends MobEntity implements EntityCollisions.Comp
     private Vec3d manualVelocity = Vec3d.ZERO;
 
     private int maxFuel = 10000;
-    private int fuel;
+    private int activeFuel;
+    private List<ItemStack> fuelItems = new ArrayList<>();
 
     private final Animatable[] sandbags = IntStream.range(0, 5).mapToObj(Animatable::new).toArray(Animatable[]::new);
     private final Animatable burner = new Animatable(5);
@@ -183,6 +190,18 @@ public class AirBalloonEntity extends MobEntity implements EntityCollisions.Comp
     }
 
     @Override
+    @Nullable
+    protected SoundEvent getHurtSound(DamageSource source) {
+        return null;
+    }
+
+    @Override
+    @Nullable
+    protected SoundEvent getDeathSound() {
+        return SoundEvents.BLOCK_BAMBOO_WOOD_BREAK;
+    }
+
+    @Override
     public void tick() {
         setAir(getMaxAir());
         int boostTicks = getBoostTicks();
@@ -209,9 +228,13 @@ public class AirBalloonEntity extends MobEntity implements EntityCollisions.Comp
                 setInflation(inflation);
             }
 
-            if (fuel > -6 && age % 2 == 0) {
-                fuel -= boosting ? 50 : 1;
-                if (fuel <= -6) {
+            if (activeFuel <= 0 && !fuelItems.isEmpty()) {
+                activeFuel = FurnaceBlockEntity.createFuelTimeMap().getOrDefault(fuelItems.remove(0).getItem(), 0);
+            }
+
+            if (activeFuel > -6 && age % 2 == 0) {
+                activeFuel -= boosting ? 50 : 1;
+                if (activeFuel <= -6) {
                     setBoostTicks(0);
                     setAscending(false);
                 }
@@ -238,7 +261,7 @@ public class AirBalloonEntity extends MobEntity implements EntityCollisions.Comp
             if (hasBurner() && isAscending()) {
                 Vec3d burnerPos = getPos().add(0, 3, 0);
                 for (int i = 0; i < (boosting ? 6 : 1); i++) {
-                    getWorld().addParticle(fuel <= 0
+                    getWorld().addParticle(activeFuel <= 0
                                 ? ParticleTypes.SMOKE
                                 : getStackInHand(Hand.MAIN_HAND).isOf(Items.SOUL_LANTERN)
                                     ? ParticleTypes.SOUL_FIRE_FLAME
@@ -303,6 +326,28 @@ public class AirBalloonEntity extends MobEntity implements EntityCollisions.Comp
         prevZDelta = zDelta;
         xDelta = getX() - prevX;
         zDelta = getZ() - prevZ;
+    }
+
+    @Override
+    public boolean damage(DamageSource source, float amount) {
+        if (source.getAttacker() instanceof PlayerEntity player && player.getAbilities().creativeMode) {
+            dropInventory();
+            remove(RemovalReason.KILLED);
+            return true;
+        }
+        if (super.damage(source, amount)) {
+            hurtTime = 0;
+            maxHurtTime = 0;
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    protected void updatePostDeath() {
+        if (!getWorld().isClient() && !isRemoved()) {
+            remove(Entity.RemovalReason.KILLED);
+        }
     }
 
     @Override
@@ -387,8 +432,8 @@ public class AirBalloonEntity extends MobEntity implements EntityCollisions.Comp
 
         if (stack.isIn(ConventionalItemTags.SHEAR_TOOLS) && hasBalloon()) {
             stack.damage(1, player, getSlotForHand(hand));
+            dropStack(BalloonDesignComponent.set(UItems.GIANT_BALLOON.getDefaultStack(), new BalloonDesignComponent(getDesign(), true)));
             setDesign(BalloonDesign.NONE);
-            dropItem(UItems.GIANT_BALLOON);
             playSound(USounds.ENTITY_HOT_AIR_BALLOON_EQUIP_CANOPY.value(), 1, 1);
             if (!player.isSneaky()) {
                 getWorld().emitGameEvent(player, GameEvent.EQUIP, getBlockPos());
@@ -414,15 +459,8 @@ public class AirBalloonEntity extends MobEntity implements EntityCollisions.Comp
         if (hasBurner()) {
             int fuel = FurnaceBlockEntity.createFuelTimeMap().getOrDefault(stack.getItem(), 0);
             if (fuel > 0) {
-                if (this.fuel < maxFuel) {
-                    if (this.fuel < 0) {
-                        this.fuel = fuel;
-                    } else {
-                        this.fuel += fuel;
-                    }
-                    if (!player.getAbilities().creativeMode) {
-                        stack.decrement(1);
-                    }
+                if (fuelItems.size() < 64) {
+                    fuelItems.add(stack.splitUnlessCreative(1, player));
                     burner.setPulling();
                     playSound(USounds.Vanilla.ENTITY_VILLAGER_YES, 1, 1);
                     return ActionResult.SUCCESS;
@@ -436,10 +474,18 @@ public class AirBalloonEntity extends MobEntity implements EntityCollisions.Comp
 
     @Override
     protected void dropInventory() {
-        ItemStack lantern = getStackInHand(Hand.MAIN_HAND);
-        setStackInHand(Hand.MAIN_HAND, ItemStack.EMPTY);
-        dropStack(lantern);
         dropStack(getPickBlockStack());
+        if (getWorld().getGameRules().getBoolean(GameRules.DO_ENTITY_DROPS)) {
+            ItemStack lantern = getStackInHand(Hand.MAIN_HAND);
+            setStackInHand(Hand.MAIN_HAND, ItemStack.EMPTY);
+            dropStack(lantern);
+            if (hasBalloon()) {
+                dropStack(BalloonDesignComponent.set(UItems.GIANT_BALLOON.getDefaultStack(), new BalloonDesignComponent(getDesign(), true)));
+                setDesign(BalloonDesign.NONE);
+            }
+            fuelItems.forEach(this::dropStack);
+            fuelItems.clear();
+        }
     }
 
     @Override
@@ -518,20 +564,22 @@ public class AirBalloonEntity extends MobEntity implements EntityCollisions.Comp
                     move(MovementType.SELF, getVelocity());
                     setVelocity(getVelocity().multiply(slipperyness));
                 }
-            } else {
-                Map<Box, List<Entity>> collidingEntities = getCollidingEntities(getBoundingBoxes().stream());
-
-                for (Map.Entry<Box, List<Entity>> passengers : collidingEntities.entrySet()) {
-                    for (Entity passenger : passengers.getValue()) {
-                        Living<?> living = Living.living(passenger);
-                        if (living != null) {
-                            living.getTransportation().setVehicle(this);
-                        }
-
-                    }
-                }
             }
             updateLimbs(false);
+        }
+
+        if (isAirworthy()) {
+            Map<Box, List<Entity>> collidingEntities = getCollidingEntities(getBoundingBoxes().stream());
+
+            for (Map.Entry<Box, List<Entity>> passengers : collidingEntities.entrySet()) {
+                for (Entity passenger : passengers.getValue()) {
+                    Living<?> living = Living.living(passenger);
+                    if (living != null) {
+                        living.getTransportation().setVehicle(this);
+                    }
+
+                }
+            }
         }
     }
 
@@ -714,7 +762,6 @@ public class AirBalloonEntity extends MobEntity implements EntityCollisions.Comp
     protected void fall(double heightDifference, boolean onGround, BlockState state, BlockPos landedPosition) {
     }
 
-
     @Override
     public void readCustomDataFromNbt(NbtCompound compound) {
         super.readCustomDataFromNbt(compound);
@@ -724,7 +771,12 @@ public class AirBalloonEntity extends MobEntity implements EntityCollisions.Comp
         setBoostTicks(compound.getInt("boostTicks"));
         prevInflation = compound.getInt("inflationAmount");
         setInflation(prevInflation);
-        fuel = MathHelper.clamp(compound.getInt("fuel"), 0, maxFuel);
+        activeFuel = MathHelper.clamp(compound.getInt("fuel"), 0, maxFuel);
+        fuelItems = compound.contains("fuelItems", NbtElement.LIST_TYPE) ? compound
+                .getList("fuelItems", NbtElement.COMPOUND_TYPE).stream()
+                .map(item -> ItemStack.fromNbtOrEmpty(getRegistryManager(), (NbtCompound)item))
+                .limit(64)
+                .collect(Collectors.toList()) : new ArrayList<>();
     }
 
     @Override
@@ -735,7 +787,12 @@ public class AirBalloonEntity extends MobEntity implements EntityCollisions.Comp
         compound.putBoolean("burnerActive", isAscending());
         compound.putInt("boostTicks", getBoostTicks());
         compound.putInt("inflationAmount", getInflation());
-        compound.putInt("fuel", fuel);
+        compound.putInt("fuel", activeFuel);
+        NbtList fuelItemsNbt = new NbtList();
+        fuelItems.forEach(item -> {
+            fuelItemsNbt.add(NbtSerialisable.encode(ItemStack.OPTIONAL_CODEC, item, getRegistryManager()));
+        });
+        compound.put("fuelItems", fuelItemsNbt);
     }
 
     @Override

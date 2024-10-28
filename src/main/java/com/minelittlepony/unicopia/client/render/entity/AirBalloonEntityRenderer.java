@@ -20,6 +20,8 @@ import net.minecraft.item.Items;
 import net.minecraft.util.Colors;
 import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.RotationAxis;
 
 public class AirBalloonEntityRenderer extends MobEntityRenderer<AirBalloonEntity, AirBalloonEntityModel> {
     public AirBalloonEntityRenderer(EntityRendererFactory.Context context) {
@@ -40,13 +42,19 @@ public class AirBalloonEntityRenderer extends MobEntityRenderer<AirBalloonEntity
 
     @Override
     public void render(AirBalloonEntity entity, float yaw, float tickDelta, MatrixStack matrices, VertexConsumerProvider vertices, int light) {
+        matrices.push();
+        if (entity.hurtTime > 0) {
+            matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(MathHelper.sin(entity.age + tickDelta) * 3));
+        }
         super.render(entity, yaw, tickDelta, matrices, vertices, light);
+        matrices.pop();
 
         if (MinecraftClient.getInstance().getEntityRenderDispatcher().shouldRenderHitboxes() && !entity.isInvisible() && !MinecraftClient.getInstance().hasReducedDebugInfo()) {
             MultiBox.forEach(entity.getBoundingBox(), box -> {
                 WorldRenderer.drawBox(matrices, vertices.getBuffer(RenderLayer.getLines()), box.offset(entity.getPos().multiply(-1)), 1, 1, 1, 1);
             });
         }
+
     }
 
     @Override
