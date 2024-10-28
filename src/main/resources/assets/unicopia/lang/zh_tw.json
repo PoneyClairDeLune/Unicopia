@@ -1488,6 +1488,8 @@
   "death.attack.unicopia.bat_screech.self": "%1$s把自己嚇死了",
   "death.attack.unicopia.bat_screech.player": "%2$s把%1$s嚇死了",
   "death.attack.unicopia.bat_screech.item": "%1$s被%2$s用%3$s嚇死了",
+  "death.attack.unicopia.rainboom": "%1$s's eardrums were shattered",
+  "death.attack.unicopia.rainboom.player": "%2$s's shattered %1$s's eardrums",
   "death.attack.unicopia.gravity_well_recoil": "%1$s變成了麪條",
   "death.attack.unicopia.gravity_well_recoil.player": "%1$s被%2$s的施咒變成了麪條",
   "death.attack.unicopia.gravity_well_recoil.item": "%1$s被%2$s的%3$s施咒變成了麪條",
