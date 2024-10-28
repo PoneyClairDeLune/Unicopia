@@ -48,7 +48,7 @@ public record MsgPlayerAbility<T extends Hit> (
             power.onQuickAction(player, type, data);
         } else {
             if (data.filter(data -> power.apply(player, data)).isEmpty()) {
-                Channel.CANCEL_PLAYER_ABILITY.sendToPlayer(new MsgCancelPlayerAbility(), sender);
+                Channel.CANCEL_PLAYER_ABILITY.sendToPlayer(MsgCancelPlayerAbility.INSTANCE, sender);
             }
         }
     }

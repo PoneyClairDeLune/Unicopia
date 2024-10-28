@@ -9,4 +9,6 @@ import net.minecraft.network.codec.PacketCodec;
 public final class MsgCancelPlayerAbility {
     public static final MsgCancelPlayerAbility INSTANCE = new MsgCancelPlayerAbility();
     public static final PacketCodec<ByteBuf, MsgCancelPlayerAbility> PACKET_CODEC = PacketCodec.unit(INSTANCE);
+
+    private MsgCancelPlayerAbility() {}
 }
