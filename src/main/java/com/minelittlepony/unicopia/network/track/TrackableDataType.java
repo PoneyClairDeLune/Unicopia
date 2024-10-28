@@ -13,7 +13,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
@@ -36,7 +35,6 @@ public record TrackableDataType<T>(int id, PacketCodec<RegistryByteBuf, TypedVal
     public static final TrackableDataType<UUID> UUID = of(Identifier.of("uuid"), Uuids.PACKET_CODEC);
     public static final TrackableDataType<NbtCompound> NBT = of(Identifier.of("nbt"), PacketCodecs.NBT_COMPOUND);
     public static final TrackableDataType<NbtCompound> COMPRESSED_NBT = of(Identifier.of("compressed_nbt"), PacketCodecs.NBT_COMPOUND);
-    public static final TrackableDataType<Optional<PacketByteBuf>> RAW_BYTES = of(Identifier.of("raw_bytes"), PacketCodecUtils.OPTIONAL_BUFFER);
 
     public static final TrackableDataType<Optional<BlockPos>> OPTIONAL_POS = of(Identifier.of("optional_pos"), PacketCodecUtils.OPTIONAL_POS);
     public static final TrackableDataType<Optional<Vec3d>> OPTIONAL_VECTOR = of(Identifier.of("optional_vector"), PacketCodecUtils.OPTIONAL_VECTOR);

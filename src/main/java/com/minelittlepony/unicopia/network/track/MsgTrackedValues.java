@@ -1,5 +1,6 @@
 package com.minelittlepony.unicopia.network.track;
 
+import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,7 +25,7 @@ public record MsgTrackedValues(
         int owner,
         Optional<TrackerObjects> updatedObjects,
         Optional<TrackerEntries> updatedTrackers
-) implements Handled<PlayerEntity> {
+) implements Handled<PlayerEntity>, AutoCloseable {
     public static final PacketCodec<RegistryByteBuf, MsgTrackedValues> PACKET_CODEC = PacketCodec.tuple(
             PacketCodecs.INTEGER, MsgTrackedValues::owner,
             PacketCodecs.optional(TrackerObjects.PACKET_CODEC), MsgTrackedValues::updatedObjects,
@@ -34,22 +35,33 @@ public record MsgTrackedValues(
 
     @Override
     public void handle(PlayerEntity sender) {
-        Entity entity = sender.getWorld().getEntityById(owner);
-        if (entity instanceof Trackable trackable) {
-            trackable.getDataTrackers().load(this);
+        try (this) {
+            Entity entity = sender.getWorld().getEntityById(owner);
+            if (entity instanceof Trackable trackable) {
+                trackable.getDataTrackers().load(this);
+            }
         }
     }
 
-    public record TrackerObjects(int id, Set<UUID> removedValues, Map<UUID, ByteBuf> values) {
+    public record TrackerObjects(int id, Set<UUID> removedValues, Map<UUID, ByteBuf> values) implements Closeable {
         public static final PacketCodec<RegistryByteBuf, TrackerObjects> PACKET_CODEC = PacketCodec.tuple(
                 PacketCodecs.INTEGER, TrackerObjects::id,
                 Uuids.PACKET_CODEC.collect(PacketCodecs.toCollection(HashSet::new)), TrackerObjects::removedValues,
                 PacketCodecs.map(HashMap::new, Uuids.PACKET_CODEC, PacketCodecUtils.REGISTRY_BUFFER), TrackerObjects::values,
                 TrackerObjects::new
         );
+
+        @Override
+        public void close() {
+            values.values().forEach(buf -> {
+                if (buf.refCnt() > 0) {
+                    buf.release();
+                }
+            });
+        }
     }
 
-    public record TrackerEntries(int id, boolean wipe, List<DataTracker.Pair<?>> values, Map<Integer, ByteBuf> objects) {
+    public record TrackerEntries(int id, boolean wipe, List<DataTracker.Pair<?>> values, Map<Integer, ByteBuf> objects) implements Closeable {
         public static final PacketCodec<RegistryByteBuf, TrackerEntries> PACKET_CODEC = PacketCodec.tuple(
                 PacketCodecs.INTEGER, TrackerEntries::id,
                 PacketCodecs.BOOL, TrackerEntries::wipe,
@@ -57,5 +69,20 @@ public record MsgTrackedValues(
                 PacketCodecs.map(HashMap::new, PacketCodecs.INTEGER, PacketCodecUtils.REGISTRY_BUFFER), TrackerEntries::objects,
                 TrackerEntries::new
         );
+
+        @Override
+        public void close() {
+            objects.values().forEach(buf -> {
+                if (buf.refCnt() > 0) {
+                    buf.release();
+                }
+            });
+        }
+    }
+
+    @Override
+    public void close() {
+        updatedObjects.ifPresent(TrackerObjects::close);
+        updatedObjects.ifPresent(TrackerObjects::close);
     }
 }

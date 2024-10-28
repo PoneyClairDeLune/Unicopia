@@ -44,11 +44,13 @@ public class DataTrackerManager {
         packetEmitters.add((sender, initial) -> {
             var update = initial ? tracker.getInitialPairs(lookup) : tracker.getDirtyPairs(lookup);
             if (update.isPresent()) {
-                sender.accept(Channel.SERVER_TRACKED_ENTITY_DATA.toPacket(new MsgTrackedValues(
+                try (var payload = new MsgTrackedValues(
                         entity.getId(),
                         Optional.empty(),
                         update
-                )));
+                )) {
+                    sender.accept(Channel.SERVER_TRACKED_ENTITY_DATA.toPacket(payload));
+                }
             }
         });
         return tracker;
@@ -60,11 +62,13 @@ public class DataTrackerManager {
         packetEmitters.add((sender, initial) -> {
             var update = initial ? tracker.getInitialPairs(lookup) : tracker.getDirtyPairs(lookup);
             if (update.isPresent()) {
-                sender.accept(Channel.SERVER_TRACKED_ENTITY_DATA.toPacket(new MsgTrackedValues(
+                try (var payload = new MsgTrackedValues(
                         entity.getId(),
                         update,
                         Optional.empty()
-                )));
+                )) {
+                    sender.accept(Channel.SERVER_TRACKED_ENTITY_DATA.toPacket(payload));
+                }
             }
         });
         return tracker;

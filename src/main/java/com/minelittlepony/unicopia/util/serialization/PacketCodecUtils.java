@@ -9,6 +9,7 @@ import java.util.function.Function;
 import java.util.function.IntFunction;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
@@ -20,17 +21,16 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 
 public interface PacketCodecUtils {
-    PacketCodec<PacketByteBuf, PacketByteBuf> BUFFER = PacketCodec.of((bytes, buffer) -> {
-        buffer.writeInt(bytes.writerIndex());
-        buffer.writeBytes(bytes);
-    }, buffer -> new PacketByteBuf(buffer.readBytes(buffer.readInt())));
-    PacketCodec<PacketByteBuf, Optional<PacketByteBuf>> OPTIONAL_BUFFER = PacketCodecs.optional(BUFFER);
-
     PacketCodec<RegistryByteBuf, ByteBuf> REGISTRY_BUFFER = PacketCodec.of((bytes, buffer) -> {
-        buffer.writeInt(bytes.writerIndex());
-        buffer.writeBytes(bytes);
-    }, buffer -> new RegistryByteBuf(buffer.readBytes(buffer.readInt()), buffer.getRegistryManager()));
-    PacketCodec<RegistryByteBuf, Optional<ByteBuf>> OPTIONAL_REGISTRY_BUFFER = PacketCodecs.optional(REGISTRY_BUFFER);
+        int length = bytes.readableBytes();
+        buffer.writeInt(length);
+        if (length > 0) {
+            buffer.writeBytes(bytes, 0, length);
+        }
+    }, buffer -> {
+        int length = buffer.readInt();
+        return new RegistryByteBuf(length > 0 ? buffer.readBytes(length) : Unpooled.EMPTY_BUFFER, buffer.getRegistryManager());
+    });
 
     PacketCodec<PacketByteBuf, RegistryKey<?>> REGISTRY_KEY = PacketCodec.tuple(
             Identifier.PACKET_CODEC, RegistryKey::getRegistry,
