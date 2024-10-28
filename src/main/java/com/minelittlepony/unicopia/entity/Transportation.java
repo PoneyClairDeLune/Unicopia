@@ -54,7 +54,8 @@ public class Transportation<T extends LivingEntity> implements Tickable {
             ticksInVehicle = 0;
         }
 
-        if (ticksInVehicle > 20 && vehicle instanceof AirBalloonEntity) {
+        if (ticksInVehicle > 20 && vehicle instanceof AirBalloonEntity b
+                && !b.isOnGround() && b.hasBalloon() && b.hasBurner() && b.isAscending()) {
             UCriteria.RIDE_BALLOON.trigger(living.asEntity());
         }
     }
