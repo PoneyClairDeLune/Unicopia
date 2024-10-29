@@ -226,7 +226,7 @@ public class PhysicsBodyProjectileEntity extends PersistentProjectileEntity impl
             boolean ownerCanModify = !getWorld().isClient && Caster.of(getOwner()).filter(pony -> pony.canModifyAt(hit.getBlockPos())).isPresent();
 
             if (ownerCanModify && getWorld().getGameRules().getBoolean(GameRules.DO_MOB_GRIEFING)) {
-                if ((!isBouncy() || getWorld().random.nextInt(200) == 0) && state.isIn(UTags.Blocks.FRAGILE)) {
+                if ((!isBouncy() || getWorld().random.nextInt(200) == 0) && getWorld().getBlockState(hit.getBlockPos()).isIn(UTags.Blocks.FRAGILE)) {
                     getWorld().breakBlock(hit.getBlockPos(), true);
                 }
             }
