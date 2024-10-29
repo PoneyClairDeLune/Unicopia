@@ -135,7 +135,6 @@ public class UHud {
 
         RenderSystem.setShaderColor(1, 1, 1,1);
         RenderSystem.enableBlend();
-        RenderSystem.setShaderTexture(0, HUD_TEXTURE);
 
         boolean swap = client.options.sneakKey.isPressed();
 
@@ -173,6 +172,10 @@ public class UHud {
         }
 
         slots.forEach(slot -> slot.renderLabel(context, abilities, tickDelta));
+
+        if (xDirection < 0) {
+            matrices.translate(-48, 0, 0);
+        }
 
         //if (maxPages > 0) {
             DrawableUtil.drawScaledText(context, Text.literal((currentPage + 1) + "/" + (maxPages + 1)), 44, 38, 0.5F, Colors.WHITE);

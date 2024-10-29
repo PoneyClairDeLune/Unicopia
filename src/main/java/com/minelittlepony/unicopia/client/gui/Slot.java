@@ -11,9 +11,11 @@ import com.minelittlepony.unicopia.client.KeyBindingsHandler;
 import com.minelittlepony.unicopia.client.UnicopiaClient;
 import com.mojang.blaze3d.systems.RenderSystem;
 
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.text.MutableText;
+import net.minecraft.util.Arm;
 import net.minecraft.util.Colors;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.MathHelper;
@@ -135,7 +137,12 @@ class Slot {
 
     protected void renderContents(DrawContext context, AbilityDispatcher abilities, boolean bSwap, float tickDelta) {
         // contents
-        context.drawTexture(UHud.HUD_TEXTURE, 0, 0, foregroundU, foregroundV, size, size, 128, 128);
+        boolean flip = MinecraftClient.getInstance().player.getMainArm() == Arm.LEFT;
+        if (flip) {
+            context.drawTexture(UHud.HUD_TEXTURE, 0, 0, size, size, foregroundU + size, foregroundV, -size, size, 128, 128);
+        } else {
+            context.drawTexture(UHud.HUD_TEXTURE, 0, 0, foregroundU, foregroundV, size, size, 128, 128);
+        }
     }
 
     void renderLabel(DrawContext context, AbilityDispatcher abilities, float tickDelta) {
