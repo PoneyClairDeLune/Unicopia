@@ -36,12 +36,14 @@ public class BaitedFishingRodItem extends FishingRodItem {
                 world.spawnEntity(bobber);
             }
 
-            if (oldFishHook != null
-                    && oldFishHook.getHookedEntity() == null
-                    && oldFishHook.getDataTracker().get(FishingBobberEntity.CAUGHT_FISH)
-                    && result.getValue().isOf(this)) {
-                ItemStack stack = result.getValue().withItem(Items.FISHING_ROD);
-                return TypedActionResult.success(stack, world.isClient());
+            if (!user.isCreative()) {
+                if (oldFishHook != null
+                        && oldFishHook.getHookedEntity() == null
+                        && oldFishHook.getDataTracker().get(FishingBobberEntity.CAUGHT_FISH)
+                        && result.getValue().isOf(this)) {
+                    ItemStack stack = result.getValue().withItem(Items.FISHING_ROD);
+                    return TypedActionResult.success(stack, world.isClient());
+                }
             }
         }
         return result;
