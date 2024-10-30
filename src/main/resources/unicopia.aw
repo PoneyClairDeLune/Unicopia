@@ -21,3 +21,5 @@ accessible          field    net/minecraft/datafixer/fix/AttributeIdFix         
 mutable             field    net/minecraft/datafixer/fix/AttributeIdFix            UUID_TO_ID     Ljava/util/Map;
 accessible          field    net/minecraft/datafixer/fix/AttributeIdFix            NAME_TO_ID     Ljava/util/Map;
 mutable             field    net/minecraft/datafixer/fix/AttributeIdFix            NAME_TO_ID     Ljava/util/Map;
+
+accessible          field    net/minecraft/entity/projectile/FishingBobberEntity   CAUGHT_FISH    Lnet/minecraft/entity/data/TrackedData;

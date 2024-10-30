@@ -65,6 +65,7 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.component.type.DyedColorComponent;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.fluid.Fluids;
 import net.minecraft.item.*;
 import net.minecraft.particle.ParticleEffect;
@@ -166,6 +167,16 @@ public interface URenderers {
                 }
 
                 return (float)lastAngle;
+            }
+        });
+        ModelPredicateProviderRegistry.register(UItems.BAITED_FISHING_ROD, Identifier.ofVanilla("cast"), (stack, world, entity, seed) -> {
+            if (entity == null) {
+                return 0;
+            } else {
+                boolean main = entity.getMainHandStack() == stack;
+                boolean offhand = entity.getOffHandStack() == stack && !(entity.getMainHandStack().getItem() instanceof FishingRodItem);
+
+                return (main || offhand) && entity instanceof PlayerEntity p && p.fishHook != null ? 1 : 0;
             }
         });
 
