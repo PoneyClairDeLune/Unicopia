@@ -8,6 +8,7 @@ import com.google.common.base.Predicates;
 import com.mojang.serialization.Lifecycle;
 
 import net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder;
+import net.fabricmc.fabric.api.event.registry.RegistryAttribute;
 import net.minecraft.registry.tag.TagKey;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
@@ -22,8 +23,16 @@ public interface RegistryUtils {
         return FabricRegistryBuilder.from(new SimpleRegistry<T>(RegistryKey.ofRegistry(id), Lifecycle.stable())).buildAndRegister();
     }
 
-    static <T> Registry<T> createDefaulted(Identifier id, String def) {
-        return FabricRegistryBuilder.from(new SimpleDefaultedRegistry<T>(def, RegistryKey.ofRegistry(id), Lifecycle.stable(), false)).buildAndRegister();
+    static <T> Registry<T> createSynced(Identifier id) {
+        return FabricRegistryBuilder.from(new SimpleRegistry<T>(RegistryKey.ofRegistry(id), Lifecycle.stable()))
+                .attribute(RegistryAttribute.SYNCED)
+                .buildAndRegister();
+    }
+
+    static <T> Registry<T> createSynced(Identifier id, String def) {
+        return FabricRegistryBuilder.from(new SimpleDefaultedRegistry<T>(def, RegistryKey.ofRegistry(id), Lifecycle.stable(), false))
+                .attribute(RegistryAttribute.SYNCED)
+                .buildAndRegister();
     }
 
     static <T> RegistryEntryList<T> entriesForTag(World world, TagKey<T> key) {

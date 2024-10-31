@@ -5,13 +5,14 @@ import java.util.Optional;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.registry.RegistryWrapper.WrapperLookup;
 
 public interface TrackableObject<T extends TrackableObject<T>> {
     Status getStatus();
 
-    default void read(ByteBuf buffer, WrapperLookup lookup) {
+    default void read(RegistryByteBuf buffer, WrapperLookup lookup) {
         readTrackedNbt(PacketCodecs.NBT_COMPOUND.decode(buffer), lookup);
     }
 

@@ -85,7 +85,8 @@
     "seasons.MixinFertilizableUtil",
     "ad_astra.MixinApiHelper",
     "ad_astra.MixinOxygenApi",
-    "forgified.MixinIForgeBoat"
+    "forgified.MixinIForgeBoat",
+    "forgified.MixinPacketAndPayloadAcceptor"
   ],
   "client": [
     "client.MixinAnimalModel",

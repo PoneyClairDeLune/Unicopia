@@ -12,8 +12,10 @@ import java.util.function.Supplier;
 import org.jetbrains.annotations.Nullable;
 
 import com.minelittlepony.unicopia.network.track.TrackableObject.Status;
-import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import net.minecraft.network.RegistryByteBuf;
+import net.minecraft.registry.DynamicRegistryManager;
 import net.minecraft.registry.RegistryWrapper.WrapperLookup;
 
 public class ObjectTracker<T extends TrackableObject<T>> {
@@ -89,10 +91,10 @@ public class ObjectTracker<T extends TrackableObject<T>> {
             return Optional.empty();
         }
 
-        Map<UUID, ByteBuf> updates = new HashMap<>();
+        Map<UUID, byte[]> updates = new HashMap<>();
         quickAccess.entrySet().forEach(object -> {
             object.getValue().write(Status.NEW, lookup).ifPresent(data -> {
-                updates.put(object.getKey(), data);
+                updates.put(object.getKey(), data.copy().array());
             });
         });
 
@@ -101,7 +103,7 @@ public class ObjectTracker<T extends TrackableObject<T>> {
 
     synchronized Optional<MsgTrackedValues.TrackerObjects> getDirtyPairs(WrapperLookup lookup) {
         if (!trackedObjects.isEmpty()) {
-            Map<UUID, ByteBuf> updates = new HashMap<>();
+            Map<UUID, byte[]> updates = new HashMap<>();
             Set<UUID> removedTrackableObjects = new HashSet<>();
             trackedObjects.entrySet().removeIf(object -> {
                 TrackableObject.Status status = object.getValue().getStatus();
@@ -110,7 +112,7 @@ public class ObjectTracker<T extends TrackableObject<T>> {
                     return true;
                 }
                 object.getValue().write(status, lookup).ifPresent(data -> {
-                    updates.put(object.getKey(), data);
+                    updates.put(object.getKey(), data.copy().array());
                 });
                 return false;
             });
@@ -124,7 +126,7 @@ public class ObjectTracker<T extends TrackableObject<T>> {
         return Optional.empty();
     }
 
-    synchronized void load(MsgTrackedValues.TrackerObjects objects, WrapperLookup lookup) {
+    synchronized void load(MsgTrackedValues.TrackerObjects objects, DynamicRegistryManager lookup) {
         objects.removedValues().forEach(removedId -> {
             T o = trackedObjects.remove(removedId);
             if (o != null) {
@@ -137,7 +139,8 @@ public class ObjectTracker<T extends TrackableObject<T>> {
                 o = constructor.get();
                 trackedObjects.put(id, o);
             }
-            o.read(data, lookup);
+
+            o.read(new RegistryByteBuf(Unpooled.wrappedBuffer(data), lookup), lookup);
         });
         quickAccess = Map.copyOf(trackedObjects);
     }

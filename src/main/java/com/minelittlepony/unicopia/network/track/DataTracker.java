@@ -9,13 +9,14 @@ import java.util.Optional;
 
 import com.minelittlepony.unicopia.util.Untyped;
 
-import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
+import net.minecraft.registry.DynamicRegistryManager;
 import net.minecraft.registry.RegistryWrapper.WrapperLookup;
 
 public class DataTracker {
@@ -86,7 +87,7 @@ public class DataTracker {
             return getInitialPairs(lookup);
         }
 
-        Map<Integer, ByteBuf> updates = writePersistentObjects(lookup, false);
+        Map<Integer, byte[]> updates = writePersistentObjects(lookup, false);
 
         if (dirtyIndices.isEmpty() && updates.isEmpty()) {
             return Optional.empty();
@@ -98,21 +99,21 @@ public class DataTracker {
         for (int i : toSend) {
             pairs.add(codecs.get(i));
         }
-        return Optional.of(new MsgTrackedValues.TrackerEntries(id, false, pairs, Untyped.cast(updates)));
+        return Optional.of(new MsgTrackedValues.TrackerEntries(id, false, pairs, updates));
     }
 
-    private Map<Integer, ByteBuf> writePersistentObjects(WrapperLookup lookup, boolean initial) {
-        Map<Integer, ByteBuf> updates = new HashMap<>();
+    private Map<Integer, byte[]> writePersistentObjects(WrapperLookup lookup, boolean initial) {
+        Map<Integer, byte[]> updates = new HashMap<>();
         for (int i = 0; i < persistentObjects.size(); i++) {
             TrackableObject<?> o = persistentObjects.get(i);
             TrackableObject.Status status = initial ? TrackableObject.Status.NEW : o.getStatus();
             int id = i;
-            o.write(status, lookup).ifPresent(data -> updates.put(id, data));
+            o.write(status, lookup).ifPresent(data -> updates.put(id, data.copy().array()));
         }
         return updates;
     }
 
-    public synchronized void load(MsgTrackedValues.TrackerEntries values, WrapperLookup lookup) {
+    public synchronized void load(MsgTrackedValues.TrackerEntries values, DynamicRegistryManager lookup) {
         if (values.wipe()) {
             codecs.clear();
             codecs.addAll(values.values());
@@ -129,7 +130,7 @@ public class DataTracker {
         for (var entry : values.objects().entrySet()) {
             TrackableObject<?> o = persistentObjects.get(entry.getKey());
             if (o != null) {
-                o.read(entry.getValue(), lookup);
+                o.read(new RegistryByteBuf(Unpooled.wrappedBuffer(entry.getValue()), lookup), lookup);
             }
         }
     }

@@ -9,9 +9,7 @@ import java.util.function.Function;
 import java.util.function.IntFunction;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import net.minecraft.network.PacketByteBuf;
-import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.registry.RegistryKey;
@@ -21,17 +19,6 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 
 public interface PacketCodecUtils {
-    PacketCodec<RegistryByteBuf, ByteBuf> REGISTRY_BUFFER = PacketCodec.of((bytes, buffer) -> {
-        int length = bytes.readableBytes();
-        buffer.writeInt(length);
-        if (length > 0) {
-            buffer.writeBytes(bytes, 0, length);
-        }
-    }, buffer -> {
-        int length = buffer.readInt();
-        return new RegistryByteBuf(length > 0 ? buffer.readBytes(length) : Unpooled.EMPTY_BUFFER, buffer.getRegistryManager());
-    });
-
     PacketCodec<PacketByteBuf, RegistryKey<?>> REGISTRY_KEY = PacketCodec.tuple(
             Identifier.PACKET_CODEC, RegistryKey::getRegistry,
             Identifier.PACKET_CODEC, RegistryKey::getValue,

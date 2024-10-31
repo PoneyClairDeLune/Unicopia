@@ -6,13 +6,13 @@ import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Coerce;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.minelittlepony.unicopia.network.track.Trackable;
 
 import net.minecraft.entity.Entity;
-import net.minecraft.network.listener.ClientPlayPacketListener;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.server.network.EntityTrackerEntry;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -29,8 +29,12 @@ abstract class MixinEntityTrackerEntry {
         Trackable.of(entity).getDataTrackers().tick(this::sendSyncPacket);
     }
 
-    @Inject(method = "sendPackets", at = @At("RETURN"))
-    private void unicopia_onSendPackets(ServerPlayerEntity player, Consumer<Packet<ClientPlayPacketListener>> sender, CallbackInfo info) {
-        Trackable.of(entity).getDataTrackers().sendInitial(player, sender);
+    @SuppressWarnings("unchecked")
+    @Inject(method = "sendPackets", at = @At("RETURN"), require = 0)
+    private void unicopia_onSendPackets(ServerPlayerEntity player, @Coerce Object sender, CallbackInfo info) {
+        // NEO: Consumer<Packet<ClientPlayPacketListener>> replaced with PacketAndPayloadAcceptor<ClientPlayPacketListener>
+        if (sender instanceof Consumer s) {
+            Trackable.of(entity).getDataTrackers().sendInitial(player, s);
+        }
     }
 }

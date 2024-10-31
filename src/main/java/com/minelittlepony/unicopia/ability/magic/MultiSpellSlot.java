@@ -149,16 +149,14 @@ class MultiSpellSlot implements SpellSlots, NbtSerialisable {
         }
 
         @Override
-        public void read(ByteBuf buffer, WrapperLookup lookup) {
+        public void read(RegistryByteBuf buffer, WrapperLookup lookup) {
             byte contentType = buffer.readByte();
             if (contentType == 1) {
                 readTrackedNbt(PacketCodecs.NBT_COMPOUND.decode(buffer), lookup);
             } else {
                 T spell = this.spell.get();
                 if (spell != null) {
-                    spell.getDataTracker().load(MsgTrackedValues.TrackerEntries.PACKET_CODEC.decode(
-                            buffer instanceof RegistryByteBuf r ? r : new RegistryByteBuf(buffer, owner.asEntity().getRegistryManager())
-                    ), lookup);
+                    spell.getDataTracker().load(MsgTrackedValues.TrackerEntries.PACKET_CODEC.decode(buffer), buffer.getRegistryManager());
                 }
             }
         }

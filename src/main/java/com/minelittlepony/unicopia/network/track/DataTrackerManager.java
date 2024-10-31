@@ -6,16 +6,17 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import com.minelittlepony.unicopia.network.Channel;
+
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.entity.Entity;
 import net.minecraft.network.listener.ClientPlayPacketListener;
 import net.minecraft.network.packet.Packet;
-import net.minecraft.registry.RegistryWrapper.WrapperLookup;
+import net.minecraft.registry.DynamicRegistryManager;
 import net.minecraft.server.network.ServerPlayerEntity;
 
 public class DataTrackerManager {
     private final Entity entity;
-    private final WrapperLookup lookup;
+    private final DynamicRegistryManager lookup;
     final boolean isClient;
     private final List<DataTracker> trackers = new ObjectArrayList<>();
     private final List<ObjectTracker<?>> objectTrackers = new ObjectArrayList<>();
@@ -44,13 +45,11 @@ public class DataTrackerManager {
         packetEmitters.add((sender, initial) -> {
             var update = initial ? tracker.getInitialPairs(lookup) : tracker.getDirtyPairs(lookup);
             if (update.isPresent()) {
-                try (var payload = new MsgTrackedValues(
+                sender.accept(Channel.SERVER_TRACKED_ENTITY_DATA.toPacket(new MsgTrackedValues(
                         entity.getId(),
                         Optional.empty(),
                         update
-                )) {
-                    sender.accept(Channel.SERVER_TRACKED_ENTITY_DATA.toPacket(payload));
-                }
+                )));
             }
         });
         return tracker;
@@ -62,13 +61,11 @@ public class DataTrackerManager {
         packetEmitters.add((sender, initial) -> {
             var update = initial ? tracker.getInitialPairs(lookup) : tracker.getDirtyPairs(lookup);
             if (update.isPresent()) {
-                try (var payload = new MsgTrackedValues(
+                sender.accept(Channel.SERVER_TRACKED_ENTITY_DATA.toPacket(new MsgTrackedValues(
                         entity.getId(),
                         update,
                         Optional.empty()
-                )) {
-                    sender.accept(Channel.SERVER_TRACKED_ENTITY_DATA.toPacket(payload));
-                }
+                )));
             }
         });
         return tracker;

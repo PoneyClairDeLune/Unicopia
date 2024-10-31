@@ -10,7 +10,7 @@ import net.minecraft.fluid.Fluids;
 import net.minecraft.registry.tag.FluidTags;
 
 @Pseudo
-@Mixin(targets = "net.minecraftforge.common.extensions.IForgeBoat")
+@Mixin(targets = "net.neoforged.neoforge.common.extensions.IAbstractBoatExtension")
 interface MixinIForgeBoat {
     @ModifyVariable(
             method = "canBoatInFluid(Lnet/minecraft/fluid/FluidState;)Z",

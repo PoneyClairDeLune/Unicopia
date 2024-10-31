@@ -18,7 +18,7 @@ import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.registry.Registry;
 
 public interface Abilities {
-    Registry<Ability<?>> REGISTRY = RegistryUtils.createSimple(Unicopia.id("abilities"));
+    Registry<Ability<?>> REGISTRY = RegistryUtils.createSynced(Unicopia.id("abilities"));
     PacketCodec<RegistryByteBuf, Ability<?>> PACKET_CODEC = PacketCodecs.registryValue(REGISTRY.getKey());
     Map<AbilitySlot, Set<Ability<?>>> BY_SLOT = new EnumMap<>(AbilitySlot.class);
     BiFunction<AbilitySlot, Race.Composite, List<Ability<?>>> BY_SLOT_AND_COMPOSITE_RACE = Util.memoize((slot, race) -> {

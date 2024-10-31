@@ -42,10 +42,14 @@ abstract class MixinServerPlayerEntity extends PlayerEntity implements ScreenHan
         get().copyFrom(((Equine.Container<Pony>)oldPlayer).get(), alive);
     }
 
-    @Inject(method = "trySleep(Lnet/minecraft/util/math/BlockPos;)Lcom/mojang/datafixers/util/Either;", at = @At(
+    @Inject(method = {
+            "trySleep(Lnet/minecraft/util/math/BlockPos;)Lcom/mojang/datafixers/util/Either;",
+            // NEO: https://github.com/neoforged/NeoForge/blob/62eb61a8e0c726faa30eaa3f4998ba1101368ee4/patches/net/minecraft/server/level/ServerPlayer.java.patch#L77
+            "lambda$0()Lcom/mojang/datafixers/util/Either;"
+    }, at = @At(
             value = "FIELD",
             target = "net/minecraft/entity/player/PlayerEntity$SleepFailureReason.NOT_POSSIBLE_NOW:Lnet/minecraft/entity/player/PlayerEntity$SleepFailureReason;"
-    ), cancellable = true)
+    ), cancellable = true, require = 0)
     private void onTrySleep(BlockPos pos, CallbackInfoReturnable<Either<PlayerEntity.SleepFailureReason, Unit>> info) {
         if (get().getSpecies().isNocturnal() && get().asWorld().getGameRules().getBoolean(UGameRules.DO_NOCTURNAL_BAT_PONIES)) {
             ((PlayerEntity)this).sendMessage(Text.translatable("block.unicopia.bed.no_sleep.nocturnal"), true);

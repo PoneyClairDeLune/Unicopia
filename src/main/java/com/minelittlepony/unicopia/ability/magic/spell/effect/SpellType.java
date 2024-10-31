@@ -44,12 +44,13 @@ import net.minecraft.server.command.ServerCommandSource;
 
 public final class SpellType<T extends Spell> implements Affine, SpellPredicate<T> {
     public static final Identifier EMPTY_ID = Unicopia.id("none");
-    public static final SpellType<?> EMPTY_KEY = builder(t -> null).affinity(Affinity.NEUTRAL).color(0xFFFFFF).unobtainable().build(EMPTY_ID);
 
-    public static final Registry<SpellType<?>> REGISTRY = RegistryUtils.createSimple(Unicopia.id("spells"));
+    public static final Registry<SpellType<?>> REGISTRY = RegistryUtils.createSynced(Unicopia.id("spells"), EMPTY_ID.toString());
     public static final RegistryKey<? extends Registry<SpellType<?>>> REGISTRY_KEY = REGISTRY.getKey();
     public static final Codec<SpellType<?>> CODEC = REGISTRY.getCodec();
     public static final PacketCodec<RegistryByteBuf, SpellType<?>> PACKET_CODEC = PacketCodecs.registryValue(REGISTRY_KEY);
+
+    public static final SpellType<?> EMPTY_KEY = register(EMPTY_ID.getPath(), builder(t -> null).affinity(Affinity.NEUTRAL).color(0xFFFFFF).unobtainable());
 
     private static final DynamicCommandExceptionType UNKNOWN_SPELL_TYPE_EXCEPTION = new DynamicCommandExceptionType(id -> Text.translatable("spell_type.unknown", id));
 
