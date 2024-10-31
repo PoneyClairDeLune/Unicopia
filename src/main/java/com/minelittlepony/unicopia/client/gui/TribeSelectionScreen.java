@@ -161,7 +161,7 @@ public class TribeSelectionScreen extends GameGui implements HidesHud {
             }
         }
 
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return false;
     }
 
     private void scroll(int target, boolean animate) {
