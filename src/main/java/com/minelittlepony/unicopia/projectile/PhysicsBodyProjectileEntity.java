@@ -167,11 +167,11 @@ public class PhysicsBodyProjectileEntity extends PersistentProjectileEntity impl
                     stack.damage(1 + random.nextInt(10), sw, null, i -> {
                         playSound(USounds.Vanilla.ENTITY_ITEM_BREAK, 1, 1);
                     });
+                    if (!stack.isEmpty()) {
+                        dropStack(stack);
+                    }
+                    discard();
                 }
-                if (!stack.isEmpty()) {
-                    dropStack(stack);
-                }
-                setStack(ItemStack.EMPTY);
             }
         }
         super.onEntityHit(hit);
