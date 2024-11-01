@@ -42,5 +42,6 @@ public class UEntityTypeTagProvider extends FabricTagProvider<EntityType<?>> {
                 EntityType.FROG
         );
         getOrCreateTagBuilder(EntityTypeTags.CAN_BREATHE_UNDER_WATER).add(UEntities.MIMIC);
+        getOrCreateTagBuilder(EntityTypeTags.IMPACT_PROJECTILES).add(UEntities.MUFFIN);
     }
 }

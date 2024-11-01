@@ -288,6 +288,11 @@ public class PhysicsBodyProjectileEntity extends PersistentProjectileEntity impl
     }
 
     @Override
+    public boolean canBreakBlocks(World world) {
+        return !isBouncy() && super.canBreakBlocks(world);
+    }
+
+    @Override
     protected SoundEvent getHitSound() {
         if (getStack().isIn(UTags.Items.HORSE_SHOES)) {
             return USounds.Vanilla.ITEM_TRIDENT_HIT_GROUND;
