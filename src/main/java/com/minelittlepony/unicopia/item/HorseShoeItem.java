@@ -16,6 +16,7 @@ import net.minecraft.component.type.AttributeModifierSlot;
 import net.minecraft.component.type.AttributeModifiersComponent;
 import net.minecraft.entity.attribute.EntityAttributeModifier;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.projectile.ProjectileEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.tooltip.TooltipType;
@@ -91,6 +92,20 @@ public class HorseShoeItem extends HeavyProjectileItem {
         }
         return projectile;
     }
+
+    @Override
+    public void initializeProjectile(ProjectileEntity entity, double x, double y, double z, float power, float uncertainty) {
+        float degradation = 0;
+        if (entity instanceof PhysicsBodyProjectileEntity p) {
+            ItemStack stack = p.getStack();
+            degradation = (stack.getDamage() / (float)stack.getMaxDamage());
+        }
+
+        float speed = Math.max(0.2F, ((baseProjectileSpeed + 0.1F) / 1.5F) * (1 - (0.6F * degradation)));
+        float inaccuracy = projectileInnacuracy + degradation * 30;
+        entity.setVelocity(x, y, z, speed, inaccuracy);
+    }
+
 
     @Override
     public SoundEvent getThrowSound(ItemStack stack) {
