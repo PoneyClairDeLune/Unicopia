@@ -6,7 +6,6 @@ import com.minelittlepony.unicopia.USounds;
 import com.minelittlepony.unicopia.projectile.PhysicsBodyProjectileEntity;
 
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.projectile.PersistentProjectileEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.sound.SoundEvent;
@@ -25,7 +24,6 @@ public class HeavyProjectileItem extends ProjectileItem {
         if (player != null) {
             projectile.setVelocity(player, player.getPitch(), player.getYaw(), 0, 1.5F, 1);
         }
-        projectile.pickupType = PersistentProjectileEntity.PickupPermission.ALLOWED;
         return projectile;
     }
 

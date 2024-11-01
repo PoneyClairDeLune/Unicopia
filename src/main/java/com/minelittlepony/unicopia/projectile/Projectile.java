@@ -6,7 +6,9 @@ import com.minelittlepony.unicopia.util.SoundEmitter;
 
 import net.minecraft.block.DispenserBlock;
 import net.minecraft.block.dispenser.ProjectileDispenserBehavior;
+import net.minecraft.component.DataComponentTypes;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.projectile.PersistentProjectileEntity;
 import net.minecraft.entity.projectile.ProjectileEntity;
 import net.minecraft.item.ItemConvertible;
 import net.minecraft.item.ItemStack;
@@ -16,6 +18,7 @@ import net.minecraft.sound.SoundEvent;
 import net.minecraft.stat.Stats;
 import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
+import net.minecraft.util.Unit;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Position;
 import net.minecraft.world.World;
@@ -32,7 +35,12 @@ public interface Projectile extends ItemConvertible, ProjectileItem {
 
     @Override
     default ProjectileEntity createEntity(World world, Position pos, ItemStack stack, Direction direction) {
-        return createProjectile(stack, world, null);
+        ProjectileEntity entity = createProjectile(stack.copyWithCount(1), world, null);
+        entity.setPosition(pos.getX(), pos.getY(), pos.getZ());
+        if (entity instanceof PersistentProjectileEntity p) {
+            p.pickupType = PersistentProjectileEntity.PickupPermission.ALLOWED;
+        }
+        return entity;
     }
 
     @Override
@@ -49,7 +57,12 @@ public interface Projectile extends ItemConvertible, ProjectileItem {
                     0.5F,
                     0.4F / (world.random.nextFloat() * 0.4F + 0.8F));
 
-            world.spawnEntity(createProjectile(stack.copyWithCount(1), world, player));
+            ItemStack projectileStack = stack.splitUnlessCreative(1, player);
+            if (player.isCreative()) {
+                projectileStack.set(DataComponentTypes.INTANGIBLE_PROJECTILE, Unit.INSTANCE);
+            }
+
+            world.spawnEntity(createProjectile(projectileStack, world, player));
         }
 
         player.incrementStat(Stats.USED.getOrCreateStat(asItem()));
