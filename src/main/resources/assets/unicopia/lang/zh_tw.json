@@ -1,4 +1,5 @@
 {
+  "resourcepack.unicopia.programmer_art": "Programmer Art (Unicopia)",
   "block.unicopia.bed.not_safe": "您不能在此休息，附近有敵人遊蕩",
   "block.unicopia.bed.not_tired": "您現在並不睏",
   "block.unicopia.bed.no_sleep.nocturnal": "您只能在白天或雷暴期間休息",
