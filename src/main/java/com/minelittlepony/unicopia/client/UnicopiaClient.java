@@ -25,6 +25,8 @@ import com.minelittlepony.unicopia.util.Lerp;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
+import net.fabricmc.fabric.api.resource.ResourcePackActivationType;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.OpenToLanScreen;
 import net.minecraft.client.gui.screen.Screen;
@@ -38,6 +40,7 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
 public class UnicopiaClient implements ClientModInitializer {
+    private static final Text PROGRAMMER_ART_NAME = Text.translatable("resourcepack.unicopia.programmer_art");
 
     private static UnicopiaClient instance;
 
@@ -127,6 +130,10 @@ public class UnicopiaClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
         ClientTickEvents.END_WORLD_TICK.register(this::onWorldTick);
         ScreenInitCallback.EVENT.register(this::onScreenInit);
+
+        FabricLoader.getInstance().getModContainer("unicopia").ifPresent(container -> {
+            ResourceManagerHelper.registerBuiltinResourcePack(Unicopia.id("unicopia_programmer_art"), container, PROGRAMMER_ART_NAME, ResourcePackActivationType.NORMAL);
+        });
 
         ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES).registerReloadListener(ViewportShader.INSTANCE);
         ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES).registerReloadListener(SpellEffectsRenderDispatcher.INSTANCE);
