@@ -24,7 +24,9 @@ public record Appearance(ItemStack item, boolean replaceFully) {
     );
 
     public Appearance {
-        item.remove(UDataComponentTypes.APPEARANCE);
+        if (UDataComponentTypes.APPEARANCE != null) {
+            item.remove(UDataComponentTypes.APPEARANCE);
+        }
     }
 
     public ItemStack unwrap(ItemStack stack) {
