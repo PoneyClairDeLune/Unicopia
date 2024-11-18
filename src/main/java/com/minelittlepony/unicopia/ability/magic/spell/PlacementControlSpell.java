@@ -20,12 +20,11 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.RegistryWrapper.WrapperLookup;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.Util;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 public class PlacementControlSpell extends AbstractSpell implements OrientedSpell {
-    private final DataTracker.Entry<UUID> placedEntityId = dataTracker.startTracking(TrackableDataType.UUID, Util.NIL_UUID);
+    private final DataTracker.Entry<Optional<UUID>> placedEntityId = dataTracker.startTracking(TrackableDataType.UUID, Optional.empty());
     private final DataTracker.Entry<Optional<RegistryKey<World>>> dimension = dataTracker.startTracking(TrackableDataType.ofRegistryKey(), Optional.empty());
     private final DataTracker.Entry<Optional<Vec3d>> position = dataTracker.startTracking(TrackableDataType.OPTIONAL_VECTOR, Optional.empty());
     private final DataTracker.Entry<Optional<Vec3d>> orientation = dataTracker.startTracking(TrackableDataType.OPTIONAL_VECTOR, Optional.empty());
@@ -83,7 +82,7 @@ public class PlacementControlSpell extends AbstractSpell implements OrientedSpel
     public boolean tick(Caster<?> source, Situation situation) {
         if (!source.isClient()) {
 
-            if (Util.NIL_UUID.equals(placedEntityId.getOrDefault(Util.NIL_UUID))) {
+            if (placedEntityId.get().isEmpty()) {
                 if (dimension.get().isEmpty()) {
                     setDimension(source.asWorld().getRegistryKey());
                 }
@@ -99,7 +98,7 @@ public class PlacementControlSpell extends AbstractSpell implements OrientedSpel
                 entity.updatePositionAndAngles(pos.x, pos.y, pos.z, (float)rot.y, (float)rot.x);
                 entity.getWorld().spawnEntity(entity);
 
-                placedEntityId.set(entity.getUuid());
+                placedEntityId.set(Optional.of(entity.getUuid()));
             } else {
                 if (getConnection(source) == null) {
                     setDead();
@@ -112,8 +111,8 @@ public class PlacementControlSpell extends AbstractSpell implements OrientedSpel
 
     @Nullable
     private Ether.Entry<?> getConnection(Caster<?> source) {
-        return delegate == null || Util.NIL_UUID.equals(placedEntityId.getOrDefault(Util.NIL_UUID)) ? null : getWorld(source)
-                .map(world -> Ether.get(world).get(getDelegate().getTypeAndTraits().type(), placedEntityId.get(), delegate.getUuid()))
+        return delegate == null || placedEntityId.get().isEmpty() ? null : getWorld(source)
+                .map(world -> Ether.get(world).get(getDelegate().getTypeAndTraits().type(), placedEntityId.get().get(), delegate.getUuid()))
                 .orElse(null);
     }
 
@@ -128,17 +127,14 @@ public class PlacementControlSpell extends AbstractSpell implements OrientedSpel
         position.get().ifPresent(pos -> compound.put("position", NbtSerialisable.writeVector(pos)));
         orientation.get().ifPresent(o -> compound.put("orientation", NbtSerialisable.writeVector(o)));
         dimension.get().ifPresent(d -> compound.putString("dimension", d.getValue().toString()));
-        @Nullable UUID placeEntityUuid = placedEntityId.getOrDefault(Util.NIL_UUID);
-        if (!Util.NIL_UUID.equals(placeEntityUuid)) {
-            compound.putUuid("placedEntityId", placeEntityUuid);
-        }
+        placedEntityId.get().ifPresent(i -> compound.putUuid("placedEntityId", i));
     }
 
     @Override
     public void fromNBT(NbtCompound compound, WrapperLookup lookup) {
         super.fromNBT(compound, lookup);
         delegate = Spell.readNbt(compound.getCompound("spell"), lookup);
-        placedEntityId.set(compound.containsUuid("placedEntityId") ? compound.getUuid("placedEntityId") : Util.NIL_UUID);
+        placedEntityId.set(compound.containsUuid("placedEntityId") ? Optional.of(compound.getUuid("placedEntityId")) : Optional.empty());
         position.set(compound.contains("position") ? Optional.of(NbtSerialisable.readVector(compound.getList("position", NbtElement.DOUBLE_TYPE))) : Optional.empty());
         orientation.set(compound.contains("orientation") ? Optional.of(NbtSerialisable.readVector(compound.getList("orientation", NbtElement.DOUBLE_TYPE))) : Optional.empty());
         dimension.set(compound.contains("dimension", NbtElement.STRING_TYPE) ? Optional.ofNullable(Identifier.tryParse(compound.getString("dimension"))).map(id -> RegistryKey.of(RegistryKeys.WORLD, id)) : Optional.empty());

@@ -73,7 +73,6 @@ import net.minecraft.sound.BlockSoundGroup;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.Util;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -110,7 +109,7 @@ public abstract class Living<T extends LivingEntity> implements Equine<T>, Caste
     protected final DataTrackerManager trackers;
     protected final DataTracker tracker;
 
-    protected final DataTracker.Entry<UUID> carrierId;
+    protected final DataTracker.Entry<Optional<UUID>> carrierId;
 
     protected Living(T entity) {
         this.entity = entity;
@@ -121,7 +120,7 @@ public abstract class Living<T extends LivingEntity> implements Equine<T>, Caste
         this.landedHeuristic = addTicker(new Interactable(entity::isOnGround));
         this.jumpingHeuristic = addTicker(new Interactable(((LivingEntityDuck)entity)::isJumping));
 
-        carrierId = tracker.startTracking(TrackableDataType.UUID, Util.NIL_UUID);
+        carrierId = tracker.startTracking(TrackableDataType.UUID, Optional.empty());
     }
 
     public <Q extends Tickable> Q addTicker(Q tickable) {
@@ -176,16 +175,15 @@ public abstract class Living<T extends LivingEntity> implements Equine<T>, Caste
     }
 
     public Optional<UUID> getCarrierId() {
-        UUID carrierId = this.carrierId.get();
-        return carrierId == Util.NIL_UUID ? Optional.empty() : Optional.of(carrierId);
+        return carrierId.get();
     }
 
     public void setCarrier(UUID carrier) {
-        carrierId.set(carrier == null ? Util.NIL_UUID : carrier);
+        carrierId.set(Optional.ofNullable(carrier));
     }
 
     public void setCarrier(Entity carrier) {
-        setCarrier(carrier == null ? Util.NIL_UUID : carrier.getUuid());
+        setCarrier(carrier == null ? null : carrier.getUuid());
     }
 
     @Nullable

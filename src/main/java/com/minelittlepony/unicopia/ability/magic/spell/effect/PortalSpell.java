@@ -1,5 +1,6 @@
 package com.minelittlepony.unicopia.ability.magic.spell.effect;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import org.jetbrains.annotations.Nullable;
@@ -29,7 +30,6 @@ import net.minecraft.particle.ParticleTypes;
 import net.minecraft.registry.RegistryWrapper.WrapperLookup;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.Util;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
@@ -43,8 +43,7 @@ public class PortalSpell extends AbstractSpell implements PlacementControlSpell.
             .build();
     private static final Shape PARTICLE_AREA = new Sphere(true, 2, 1, 1, 0);
 
-    @Nullable
-    private final DataTracker.Entry<UUID> targetPortalId = dataTracker.startTracking(TrackableDataType.UUID, Util.NIL_UUID);
+    private final DataTracker.Entry<Optional<UUID>> targetPortalId = dataTracker.startTracking(TrackableDataType.UUID, Optional.empty());
     private final DataTracker.Entry<Float> targetPortalPitch = dataTracker.startTracking(TrackableDataType.FLOAT, 0F);
     private final DataTracker.Entry<Float> targetPortalYaw = dataTracker.startTracking(TrackableDataType.FLOAT, 0F);
     private final EntityReference<Entity> teleportationTarget = dataTracker.startTracking(new EntityReference<>());
@@ -84,11 +83,11 @@ public class PortalSpell extends AbstractSpell implements PlacementControlSpell.
 
     @SuppressWarnings("unchecked")
     private Ether.Entry<PortalSpell> getDestination(Caster<?> source) {
-        return Util.NIL_UUID.equals(targetPortalId.getOrDefault(Util.NIL_UUID)) ? null : getDestinationReference()
+        return targetPortalId.get().flatMap(id -> getDestinationReference()
                 .getTarget()
-                .map(target -> Ether.get(source.asWorld()).get((SpellType<PortalSpell>)getType(), target.uuid(), targetPortalId.get()))
+                .map(target -> Ether.get(source.asWorld()).get((SpellType<PortalSpell>)getType(), target.uuid(), id))
                 .filter(destination -> destination.isClaimedBy(getUuid()))
-                .orElse(null);
+        ).orElse(null);
     }
 
     @Override
@@ -99,10 +98,10 @@ public class PortalSpell extends AbstractSpell implements PlacementControlSpell.
     protected void setDestination(@Nullable Ether.Entry<?> destination) {
         if (destination == null) {
             teleportationTarget.set(null);
-            targetPortalId.set(Util.NIL_UUID);
+            targetPortalId.set(Optional.empty());
         } else {
             teleportationTarget.copyFrom(destination.entity);
-            targetPortalId.set(destination.getSpellId());
+            targetPortalId.set(Optional.of(destination.getSpellId()));
             targetPortalPitch.set(destination.getPitch());
             targetPortalYaw.set(destination.getYaw());
         }
@@ -229,10 +228,7 @@ public class PortalSpell extends AbstractSpell implements PlacementControlSpell.
     @Override
     public void toNBT(NbtCompound compound, WrapperLookup lookup) {
         super.toNBT(compound, lookup);
-        @Nullable UUID otherPortalUuid = targetPortalId.getOrDefault(Util.NIL_UUID);
-        if (!Util.NIL_UUID.equals(otherPortalUuid)) {
-            compound.putUuid("targetPortalId", otherPortalUuid);
-        }
+        targetPortalId.get().ifPresent(i -> compound.putUuid("targetPortalId", i));
         compound.put("teleportationTarget", teleportationTarget.toNBT(lookup));
         compound.putFloat("pitch", getPitch());
         compound.putFloat("yaw", getYaw());
@@ -243,7 +239,7 @@ public class PortalSpell extends AbstractSpell implements PlacementControlSpell.
     @Override
     public void fromNBT(NbtCompound compound, WrapperLookup lookup) {
         super.fromNBT(compound, lookup);
-        targetPortalId.set(compound.containsUuid("targetPortalId") ? compound.getUuid("targetPortalId") : Util.NIL_UUID);
+        targetPortalId.set(compound.containsUuid("targetPortalId") ? Optional.of(compound.getUuid("targetPortalId")) : Optional.empty());
         teleportationTarget.fromNBT(compound.getCompound("teleportationTarget"), lookup);
         pitch.set(compound.getFloat("pitch"));
         yaw.set(compound.getFloat("yaw"));

@@ -42,10 +42,6 @@ public class PortalSpellRenderer extends SpellRenderer<PortalSpell> {
             return;
         }
 
-        // Fancy portal rendering is disabled for now
-        // Need to fix:
-        // 1. Transparent parts of the sky (because the game sets the clear to (0,0,0,0)
-
         if (caster.asEntity().distanceTo(client.cameraEntity) > 50) {
             return; // don't bother rendering if too far away
         }

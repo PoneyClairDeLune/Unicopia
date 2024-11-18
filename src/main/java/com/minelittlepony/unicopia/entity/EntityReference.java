@@ -74,6 +74,7 @@ public class EntityReference<T extends Entity> implements NbtSerialisable, Track
     public void copyFrom(EntityReference<? extends T> other) {
         this.reference = ((EntityReference<T>)other).reference;
         this.directReference = new WeakReference<>(other.directReference.get());
+        dirty = true;
     }
 
     public boolean set(@Nullable T entity) {
@@ -128,7 +129,9 @@ public class EntityReference<T extends Entity> implements NbtSerialisable, Track
 
     @Override
     public void toNBT(NbtCompound tag, WrapperLookup lookup) {
-        getTarget().ifPresent(ref -> EntityValues.CODEC.encode(ref, lookup.getOps(NbtOps.INSTANCE), tag));
+        getTarget().ifPresent(ref -> {
+            EntityValues.CODEC.encodeStart(lookup.getOps(NbtOps.INSTANCE), ref).result().ifPresent(nbt -> tag.copyFrom((NbtCompound)nbt));
+        });
     }
 
     @SuppressWarnings("unchecked")
@@ -160,7 +163,10 @@ public class EntityReference<T extends Entity> implements NbtSerialisable, Track
 
     @Override
     public NbtCompound writeTrackedNbt(WrapperLookup lookup) {
-        return toNBT(lookup);
+        return getTarget()
+                .flatMap(ref -> EntityValues.CODEC.encodeStart(lookup.getOps(NbtOps.INSTANCE), ref).result())
+                .map(NbtCompound.class::cast)
+                .orElseGet(NbtCompound::new);
     }
 
     @Override
