@@ -140,6 +140,11 @@ public class DataTracker {
             return tracker.get(this);
         }
 
+        public T getOrDefault(T def) {
+            T t = get();
+            return t == null ? def : t;
+        }
+
         public void set(T t) {
             tracker.set(this, t);
         }

@@ -84,7 +84,7 @@ public class PortalSpell extends AbstractSpell implements PlacementControlSpell.
 
     @SuppressWarnings("unchecked")
     private Ether.Entry<PortalSpell> getDestination(Caster<?> source) {
-        return Util.NIL_UUID.equals(targetPortalId.get()) ? null : getDestinationReference()
+        return Util.NIL_UUID.equals(targetPortalId.getOrDefault(Util.NIL_UUID)) ? null : getDestinationReference()
                 .getTarget()
                 .map(target -> Ether.get(source.asWorld()).get((SpellType<PortalSpell>)getType(), target.uuid(), targetPortalId.get()))
                 .filter(destination -> destination.isClaimedBy(getUuid()))
@@ -229,7 +229,10 @@ public class PortalSpell extends AbstractSpell implements PlacementControlSpell.
     @Override
     public void toNBT(NbtCompound compound, WrapperLookup lookup) {
         super.toNBT(compound, lookup);
-        compound.putUuid("targetPortalId", targetPortalId.get());
+        @Nullable UUID otherPortalUuid = targetPortalId.getOrDefault(Util.NIL_UUID);
+        if (!Util.NIL_UUID.equals(otherPortalUuid)) {
+            compound.putUuid("targetPortalId", otherPortalUuid);
+        }
         compound.put("teleportationTarget", teleportationTarget.toNBT(lookup));
         compound.putFloat("pitch", getPitch());
         compound.putFloat("yaw", getYaw());
