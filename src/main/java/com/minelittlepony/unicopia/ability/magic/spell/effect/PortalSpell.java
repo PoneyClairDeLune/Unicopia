@@ -4,6 +4,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.jetbrains.annotations.Nullable;
+import org.joml.Matrix4f;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
+import org.joml.Vector4f;
 
 import com.minelittlepony.unicopia.USounds;
 import com.minelittlepony.unicopia.ability.magic.Caster;
@@ -22,6 +26,7 @@ import com.minelittlepony.unicopia.server.world.Ether;
 import com.minelittlepony.unicopia.util.shape.*;
 
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.Entity;
 import net.minecraft.nbt.NbtCompound;
@@ -31,6 +36,7 @@ import net.minecraft.registry.RegistryWrapper.WrapperLookup;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction.Axis;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.WorldEvents;
@@ -139,14 +145,16 @@ public class PortalSpell extends AbstractSpell implements PlacementControlSpell.
                             });
                         }
                     } else {
+                        targetPortalPitch.set(targetEntry.getPitch());
+                        targetPortalYaw.set(targetEntry.getYaw());
+
                         tickActive(source, targetEntry);
                     }
                 }
-            }
 
-            var entry = Ether.get(source.asWorld()).getOrCreate(this, source);
-            entry.setPitch(pitch.get());
-            entry.setYaw(yaw.get());
+                ownEntry.setPitch(getPitch());
+                ownEntry.setYaw(getYaw());
+            }
         }
 
         return !isDead();
@@ -154,6 +162,11 @@ public class PortalSpell extends AbstractSpell implements PlacementControlSpell.
 
     private void tickActive(Caster<?> source, Ether.Entry<?> destination) {
         destination.entity.getTarget().ifPresent(target -> {
+            Quaternionf rotationChange = getOrientationChange();
+            var matrix = getPositionMatrix(source, source.asEntity().getPos(), rotationChange, new Matrix4f());
+
+            float yawDifference = getYawDifference();
+
             source.findAllEntitiesInRange(1).forEach(entity -> {
                 if (!entity.hasPortalCooldown()) {
 
@@ -162,13 +175,16 @@ public class PortalSpell extends AbstractSpell implements PlacementControlSpell.
                         return;
                     }
 
-                    Vec3d offset = entity.getPos().subtract(source.asEntity().getPos())
-                            .add(new Vec3d(0, 0, -0.7F).rotateY(-getTargetYaw() * MathHelper.RADIANS_PER_DEGREE));
-                    float yawDifference = getYawDifference();
-                    Vec3d dest = target.pos().add(offset.rotateY(yawDifference * MathHelper.RADIANS_PER_DEGREE)).add(0, 0.1, 0);
+                    var dest4f = matrix.transform(new Vector4f(entity.getPos().toVector3f(), 1));
+                    Vec3d dest = new Vec3d(dest4f.x, dest4f.y - 0.5, dest4f.z).add(new Vec3d(0, 0, -0.7F).rotateY(-getTargetYaw() * MathHelper.RADIANS_PER_DEGREE));
 
-                    if (entity.getWorld().isTopSolid(BlockPos.ofFloored(dest).up(), entity)) {
-                        dest = dest.add(0, 1, 0);
+                    for (int i = 0; i < 2; i++) {
+                        BlockPos destBlock = BlockPos.ofFloored(dest);
+                        BlockState state = entity.getWorld().getBlockState(destBlock);
+                        if (entity.getWorld().isTopSolid(destBlock, entity)) {
+                            double maxY = state.getCollisionShape(entity.getWorld(), destBlock).getMax(Axis.Y);
+                            dest = new Vec3d(dest.x, destBlock.getY() + maxY, dest.z);
+                        }
                     }
 
                     entity.resetPortalCooldown();
@@ -191,6 +207,24 @@ public class PortalSpell extends AbstractSpell implements PlacementControlSpell.
                 ParticleUtils.spawnParticles(new MagicParticleEffect(getType().getColor()), entity, 7);
             });
         });
+    }
+
+    public Matrix4f getPositionMatrix(Caster<?> source, Vec3d pos, Quaternionf orientationChange, Matrix4f matrix) {
+        getDestinationReference().getTarget().ifPresent(destEntity -> {
+            Vector3f destPos = destEntity.pos().toVector3f();
+            Vector3f sourcePos = pos.toVector3f();
+
+            matrix.rotateAround(orientationChange.conjugate(), destPos.x, destPos.y, destPos.z);
+            matrix.translate(destPos.sub(sourcePos));
+        });
+        return matrix;
+    }
+
+    public Quaternionf getOrientationChange() {
+        return new Quaternionf().rotateTo(
+                Vec3d.fromPolar(getPitch(), getYaw()).toVector3f(),
+                Vec3d.fromPolar(getTargetPitch(), getTargetYaw()).toVector3f()
+        );
     }
 
     @Override

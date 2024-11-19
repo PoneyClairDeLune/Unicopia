@@ -6,6 +6,8 @@ import com.minelittlepony.unicopia.ability.magic.spell.effect.PortalSpell;
 import com.minelittlepony.unicopia.client.render.RenderLayers;
 import com.minelittlepony.unicopia.client.render.model.SphereModel;
 import com.minelittlepony.unicopia.entity.EntityReference;
+import com.minelittlepony.unicopia.entity.mob.CastSpellEntity;
+
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
@@ -42,11 +44,14 @@ public class PortalSpellRenderer extends SpellRenderer<PortalSpell> {
             return;
         }
 
-        if (caster.asEntity().distanceTo(client.cameraEntity) > 50) {
-            return; // don't bother rendering if too far away
-        }
-        if (client.cameraEntity == caster.asEntity()) {
-            return;
+        if (client.cameraEntity instanceof CastSpellEntity) {
+            double distance = caster.asEntity().distanceTo(client.cameraEntity);
+            if (distance > 50) {
+                return; // don't bother rendering if too far away
+            }
+            if (distance < 2) {
+                return; // don't render ourselves
+            }
         }
 
         matrices.push();

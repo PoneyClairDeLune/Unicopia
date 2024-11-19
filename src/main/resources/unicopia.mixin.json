@@ -60,6 +60,7 @@
     "datafix.MixinSchemas",
     "datafix.MixinItemStackComponentizationFix",
     "datafix.DataFixerBuilderAccessor",
+    "server.MixinChunkDataSender",
     "server.MixinEntityTrackerEntry",
     "server.MixinPathNodeMaker",
     "server.MixinPlayerManager",

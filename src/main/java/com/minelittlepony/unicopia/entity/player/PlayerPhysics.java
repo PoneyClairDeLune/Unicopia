@@ -788,8 +788,8 @@ public class PlayerPhysics extends EntityPhysics<PlayerEntity> implements Tickab
         Vec3d airflow = WeatherConditions.getAirflow(entity.getBlockPos(), entity.getWorld())
                 .multiply(0.04F * effectStrength)
                 .add(Vec3d.fromPolar(
-                    (entity.getPitch() + (float)gust.getY()) * MathHelper.RADIANS_PER_DEGREE,
-                    (entity.getYaw() + (float)gust.getZ()) * MathHelper.RADIANS_PER_DEGREE
+                    (entity.getPitch() + (float)gust.getY()),
+                    (entity.getYaw() + (float)gust.getZ())
                 ).multiply(effectStrength * (float)gust.getX() / weight));
 
         windStrength.update((float)airflow.length(), airflow.length() > windStrength.getValue() ? 1000 : 500);

@@ -7,6 +7,7 @@ import java.util.concurrent.TimeUnit;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
+import org.joml.Vector4f;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -42,6 +43,7 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
 import net.minecraft.screen.PlayerScreenHandler;
 import net.minecraft.util.Colors;
+import net.minecraft.util.math.ChunkSectionPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
@@ -92,14 +94,10 @@ class PortalFrameBuffer implements AutoCloseable {
 
         if (!(closed || framebuffer == null)) {
             Tessellator tessellator = RenderSystem.renderThreadTesselator();
-            float uScale = (float)framebuffer.viewportWidth / (float)framebuffer.textureWidth;
-            float vScale = (float)framebuffer.viewportHeight / (float)framebuffer.textureHeight;
             RenderSystem.setShader(UShaders.RENDER_TYPE_PORTAL_SURFACE);
             RenderSystem._setShaderTexture(0, framebuffer.getColorAttachment());
             BufferBuilder buffer = tessellator.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR);
-            SphereModel.DISK.scaleUV(uScale, vScale);
 
-            RenderSystem.setTextureMatrix(SphereModel.DISK.getTextureMatrix());
             SphereModel.DISK.render(matrices, buffer, 1, 2F, Colors.WHITE);
             BufferRenderer.drawWithGlobalProgram(buffer.end());
 
@@ -115,6 +113,7 @@ class PortalFrameBuffer implements AutoCloseable {
     }
 
     public void build(PortalSpell spell, Caster<?> caster, EntityReference.EntityValues<Entity> target) {
+        closed = false;
 
         long refreshRate = Unicopia.getConfig().fancyPortalRefreshRate.get();
         if (refreshRate > 0 && framebuffer != null && System.currentTimeMillis() % refreshRate != 0) {
@@ -146,6 +145,8 @@ class PortalFrameBuffer implements AutoCloseable {
             }
             recursionCount++;
 
+            Entity globalCameraEntity = client.cameraEntity;
+
             try {
                 if (closed || client.interactionManager == null) {
                     close();
@@ -155,17 +156,21 @@ class PortalFrameBuffer implements AutoCloseable {
                 Camera camera = client.gameRenderer.getCamera();
 
                 Entity cameraEntity = UEntities.CAST_SPELL.create(caster.asWorld());
-                Vec3d offset = new Vec3d(0, 1, -0.1F).rotateY(-spell.getTargetYaw() * MathHelper.RADIANS_PER_DEGREE);
 
-                float yaw = spell.getTargetYaw() + camera.getYaw() - spell.getYaw();
-                float pitch = spell.getTargetPitch();//MathHelper.clamp(spell.getTargetPitch() + (camera.getPitch() - spell.getPitch()) * 0.65F, -90, 90) + 90;
+                Vec3d pos = target.pos();
 
-                cameraEntity.setPosition(target.pos().add(offset));
-                cameraEntity.setPitch(pitch % 180);
-                cameraEntity.setYaw((yaw + 180) % 360);
+                Quaternionf orientationChange = spell.getOrientationChange();
+                Matrix4f positionMatrix = spell.getPositionMatrix(caster, target.pos(), orientationChange, new Matrix4f());
 
+                Vector4f transformedPos = positionMatrix.transform(new Vector4f(pos.toVector3f(), 1));
+                cameraEntity.setPosition(transformedPos.x, transformedPos.y + 0.5F, transformedPos.z);
+                cameraEntity.setPitch(MathHelper.clamp(camera.getPitch() - spell.getTargetPitch() + spell.getPitch(), -90, 90));
+                cameraEntity.setYaw(MathHelper.wrapDegrees(camera.getYaw() + spell.getYawDifference()));
+
+                client.cameraEntity = cameraEntity;
                 drawWorld(cameraEntity, 400, 400);
             } finally {
+                client.cameraEntity = globalCameraEntity;
                 recursionCount--;
             }
         }
@@ -198,44 +203,38 @@ class PortalFrameBuffer implements AutoCloseable {
             BackgroundRenderer.clearFog();
             RenderSystem.enableCull();
 
-            if (renderer == null) {
-                renderer = new WorldRenderer(client, client.getEntityRenderDispatcher(), client.getBlockEntityRenderDispatcher(), client.getBufferBuilders());
-            }
             if (cameraEntity.getWorld() != world) {
                 world = (ClientWorld)cameraEntity.getWorld();
-                renderer.setWorld(world);
             }
-            //((MixinMinecraftClient)client).setWorldRenderer(renderer);
 
-            var tickCounter = client.getRenderTickCounter();
+            if (renderer == null) {
+                renderer = new WorldRenderer(client, client.getEntityRenderDispatcher(), client.getBlockEntityRenderDispatcher(), client.getBufferBuilders());
+                renderer.setWorld(world);
+                renderer.scheduleBlockRenders(
+                        ChunkSectionPos.getSectionCoord((int)cameraEntity.getX()),
+                        ChunkSectionPos.getSectionCoord((int)cameraEntity.getY()),
+                        ChunkSectionPos.getSectionCoord((int)cameraEntity.getZ())
+                );
+            }
 
             camera.update(world, cameraEntity, false, false, 1);
 
-            double fov = 110;
+            double fov = 120;
             Matrix4f projectionMatrix = client.gameRenderer.getBasicProjectionMatrix(fov);
             Matrix4f cameraTransform = new Matrix4f().rotation(camera.getRotation().conjugate(new Quaternionf()));
 
             client.gameRenderer.loadProjectionMatrix(projectionMatrix);
-            /*renderer.scheduleBlockRenders(
-                    ChunkSectionPos.getSectionCoord((int)cameraEntity.getX()),
-                    ChunkSectionPos.getSectionCoord((int)cameraEntity.getY()),
-                    ChunkSectionPos.getSectionCoord((int)cameraEntity.getZ())
-            );*/
+
             renderer.setupFrustum(
                     camera.getPos(),
                     cameraTransform,
-                    client.gameRenderer.getBasicProjectionMatrix(Math.max(fov, this.client.options.getFov().getValue().intValue()))
+                    client.gameRenderer.getBasicProjectionMatrix(Math.max(fov, client.options.getFov().getValue().intValue()))
             );
-            try {
-                renderer.render(tickCounter, false, camera, client.gameRenderer,
-                        client.gameRenderer.getLightmapTextureManager(),
-                        cameraTransform,
-                        projectionMatrix
-                );
-            } catch (Throwable t) {
-                close();
-            }
-
+            renderer.render(client.getRenderTickCounter(), false, camera, client.gameRenderer,
+                    client.gameRenderer.getLightmapTextureManager(),
+                    cameraTransform,
+                    projectionMatrix
+            );
             // Strip transparency
             RenderSystem.colorMask(false, false, false, true);
             RenderSystem.clearColor(1, 1, 1, 1);
@@ -246,6 +245,7 @@ class PortalFrameBuffer implements AutoCloseable {
         } finally {
             client.getFramebuffer().beginWrite(true);
             client.gameRenderer.loadProjectionMatrix(proj);
+            client.getBlockEntityRenderDispatcher().setWorld(client.world);
 
             window.setFramebufferWidth(globalFramebufferWidth);
             window.setFramebufferHeight(globalFramebufferHeight);
@@ -264,6 +264,7 @@ class PortalFrameBuffer implements AutoCloseable {
             if (renderer != null) {
                 renderer.getChunkBuilder().stop();
                 renderer.close();
+                renderer = null;
             }
         }
     }

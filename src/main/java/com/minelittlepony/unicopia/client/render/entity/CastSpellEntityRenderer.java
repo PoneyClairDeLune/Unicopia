@@ -9,6 +9,8 @@ import com.minelittlepony.unicopia.client.render.spell.SpellEffectsRenderDispatc
 import com.minelittlepony.unicopia.client.render.spell.SpellRenderer;
 import com.minelittlepony.unicopia.entity.mob.CastSpellEntity;
 
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
@@ -16,6 +18,7 @@ import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.EntityRendererFactory;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.screen.PlayerScreenHandler;
+import net.minecraft.util.Colors;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.ColorHelper.Argb;
 import net.minecraft.util.math.RotationAxis;
@@ -41,6 +44,10 @@ public class CastSpellEntityRenderer extends EntityRenderer<CastSpellEntity> {
 
     @Override
     public void render(CastSpellEntity entity, float yaw, float tickDelta, MatrixStack matrices, VertexConsumerProvider vertices, int light) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.cameraEntity instanceof CastSpellEntity) {
+            return;
+        }
         matrices.push();
         matrices.translate(0, 0.001, 0);
         final float height = entity.getHeight();
@@ -52,7 +59,6 @@ public class CastSpellEntityRenderer extends EntityRenderer<CastSpellEntity> {
         float animationProgress = getAnimationProgress(entity, tickDelta);
         renderAmbientEffects(matrices, vertices, entity, entity.getSpellSlot().get().orElse(null), light, animationProgress, tickDelta);
         SpellEffectsRenderDispatcher.INSTANCE.render(matrices, vertices, light, entity, entity.getScale(tickDelta), 0, tickDelta, animationProgress, yaw, pitch);
-
         matrices.pop();
     }
 
@@ -69,7 +75,7 @@ public class CastSpellEntityRenderer extends EntityRenderer<CastSpellEntity> {
 
         float angle = (animationProgress / 9F) % 360;
 
-        int color = spell == null ? 0 : spell.getTypeAndTraits().type().getColor();
+        int color = spell == null ? Colors.WHITE : spell.getTypeAndTraits().type().getColor();
 
         @Nullable
         SpellRenderer<?> renderer = spell == null ? null : SpellEffectsRenderDispatcher.INSTANCE.getRenderer(spell);
@@ -87,7 +93,7 @@ public class CastSpellEntityRenderer extends EntityRenderer<CastSpellEntity> {
                 matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(angle * ringSpeed));
                 matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(angle * ringSpeed * dim));
                 matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(angle * ringSpeed * dim));
-                PlaneModel.INSTANCE.render(matrices, buffer, light, 0, 1, Argb.withAlpha(color, (int)(255 * (scale / ((float)(dim * 3) + 1)))));
+                PlaneModel.INSTANCE.render(matrices, buffer, light, OverlayTexture.DEFAULT_UV, 1, Argb.withAlpha(color, (int)(255 * (scale / ((float)(dim * 3) + 1)))));
                 matrices.pop();
             }
         }

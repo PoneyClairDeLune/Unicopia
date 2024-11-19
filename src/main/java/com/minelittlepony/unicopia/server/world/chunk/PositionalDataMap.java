@@ -5,6 +5,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 
+import org.jetbrains.annotations.Nullable;
+
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.util.math.BlockPos;
@@ -20,6 +22,11 @@ public class PositionalDataMap<T extends PositionalDataMap.Hotspot> {
     public Set<T> getState(BlockPos pos) {
         Chunk<T> chunk = chunks.get(ChunkPos.toLong(pos));
         return chunk == null ? Set.of() : chunk.getState(pos);
+    }
+
+    @Nullable
+    public Chunk<T> getChunk(ChunkPos pos) {
+        return chunks.get(pos.toLong());
     }
 
     public void remove(T entry) {

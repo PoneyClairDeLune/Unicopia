@@ -22,6 +22,10 @@ public class Chunk<T extends PositionalDataMap.Hotspot> {
         return section == null ? Set.of() : section.getState(pos);
     }
 
+    public synchronized Set<T> getStates() {
+        return new HashSet<>(entryToSections.keySet());
+    }
+
     public synchronized boolean remove(T entry) {
         Set<Section<T>> sections = entryToSections.remove(entry);
         if (sections != null) {

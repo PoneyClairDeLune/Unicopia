@@ -13,6 +13,7 @@ import com.minelittlepony.unicopia.ability.magic.Caster;
 import com.minelittlepony.unicopia.ability.magic.spell.Spell;
 import com.minelittlepony.unicopia.ability.magic.spell.effect.SpellType;
 import com.minelittlepony.unicopia.entity.EntityReference;
+import com.minelittlepony.unicopia.server.world.chunk.Chunk;
 import com.minelittlepony.unicopia.server.world.chunk.PositionalDataMap;
 import com.minelittlepony.unicopia.util.Tickable;
 import com.minelittlepony.unicopia.util.serialization.NbtSerialisable;
@@ -20,6 +21,7 @@ import net.minecraft.nbt.*;
 import net.minecraft.registry.RegistryWrapper.WrapperLookup;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.PersistentState;
 import net.minecraft.world.World;
@@ -170,6 +172,10 @@ public class Ether extends PersistentState implements Tickable {
 
     public Set<Entry<?>> getAtPosition(BlockPos pos) {
         return world.isClient() ? Set.of() : positionData.getState(pos);
+    }
+
+    public Chunk<Entry<?>> getChunk(ChunkPos pos) {
+        return world.isClient() ? null : positionData.getChunk(pos);
     }
 
     private void pruneNodes() {
