@@ -12,6 +12,7 @@ import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.packet.s2c.play.ScreenHandlerSlotUpdateS2CPacket;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Hand;
 import net.minecraft.util.math.MathHelper;
 
@@ -22,18 +23,18 @@ public class ButterfingersStatusEffect extends StatusEffect {
     }
 
     @Override
-    public boolean applyUpdateEffect(LivingEntity entity, int amplifier) {
+    public boolean applyUpdateEffect(ServerWorld world, LivingEntity entity, int amplifier) {
         amplifier = MathHelper.clamp(amplifier, 0, 5);
         final int scale = 500 + (int)(((5 - amplifier) / 5F) * 900);
 
         if (entity.getWorld().random.nextInt(scale / 4) == 0) {
-            applyInstantEffect(null, null, entity, amplifier, entity.getWorld().random.nextInt(scale));
+            applyInstantEffect(world, null, null, entity, amplifier, entity.getWorld().random.nextInt(scale));
         }
         return true;
     }
 
     @Override
-    public void applyInstantEffect(@Nullable Entity source, @Nullable Entity attacker, LivingEntity target, int amplifier, double proximity) {
+    public void applyInstantEffect(ServerWorld world, @Nullable Entity source, @Nullable Entity attacker, LivingEntity target, int amplifier, double proximity) {
 
         if (target.getWorld().isClient) {
             return;
@@ -49,7 +50,7 @@ public class ButterfingersStatusEffect extends StatusEffect {
             ItemStack stack = target.getMainHandStack();
             if (!stack.isEmpty()) {
                 target.setStackInHand(Hand.MAIN_HAND, ItemStack.EMPTY);
-                target.dropStack(stack);
+                target.dropStack(world, stack);
                 target.getWorld().playSound(null, target.getBlockPos(), USounds.ENTITY_GENERIC_BUTTER_FINGERS, target.getSoundCategory());
             }
         }

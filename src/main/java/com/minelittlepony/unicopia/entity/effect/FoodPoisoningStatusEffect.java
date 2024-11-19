@@ -3,6 +3,7 @@ package com.minelittlepony.unicopia.entity.effect;
 import org.jetbrains.annotations.Nullable;
 
 import com.minelittlepony.unicopia.USounds;
+import com.minelittlepony.unicopia.util.TypedActionResult;
 
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.FoodComponent;
@@ -15,8 +16,8 @@ import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.RegistryKeys;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
-import net.minecraft.util.TypedActionResult;
 
 public class FoodPoisoningStatusEffect extends StatusEffect {
 
@@ -25,12 +26,8 @@ public class FoodPoisoningStatusEffect extends StatusEffect {
     }
 
     @Override
-    public boolean applyUpdateEffect(LivingEntity entity, int amplifier) {
-        if (entity.getWorld().isClient) {
-            return true;
-        }
-
-        boolean showParticles = entity.getStatusEffect(entity.getRegistryManager().get(RegistryKeys.STATUS_EFFECT).getEntry(this)).shouldShowParticles();
+    public boolean applyUpdateEffect(ServerWorld world, LivingEntity entity, int amplifier) {
+        boolean showParticles = entity.getStatusEffect(entity.getRegistryManager().getOrThrow(RegistryKeys.STATUS_EFFECT).getEntry(this)).shouldShowParticles();
 
         if (!entity.hasStatusEffect(StatusEffects.NAUSEA) && entity.getRandom().nextInt(12) == 0) {
             entity.addStatusEffect(new StatusEffectInstance(StatusEffects.NAUSEA, 100, 1, true, showParticles, false));
@@ -41,15 +38,15 @@ public class FoodPoisoningStatusEffect extends StatusEffect {
         }
 
         if (EffectUtils.isPoisoned(entity) && entity.getRandom().nextInt(12) == 0 && !entity.hasStatusEffect(StatusEffects.POISON)) {
-            StatusEffects.POISON.value().applyUpdateEffect(entity, 1);
+            StatusEffects.POISON.value().applyUpdateEffect(world, entity, 1);
         }
 
         return true;
     }
 
     @Override
-    public void applyInstantEffect(@Nullable Entity source, @Nullable Entity attacker, LivingEntity target, int amplifier, double proximity) {
-        applyUpdateEffect(target, amplifier);
+    public void applyInstantEffect(ServerWorld world, @Nullable Entity source, @Nullable Entity attacker, LivingEntity target, int amplifier, double proximity) {
+        applyUpdateEffect(world, target, amplifier);
     }
 
     @Override

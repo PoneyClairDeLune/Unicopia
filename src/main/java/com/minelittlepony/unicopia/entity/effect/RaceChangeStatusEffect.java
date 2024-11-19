@@ -26,6 +26,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.world.World.ExplosionSourceType;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.registry.Registries;
 
 public class RaceChangeStatusEffect extends StatusEffect {
@@ -74,7 +75,7 @@ public class RaceChangeStatusEffect extends StatusEffect {
     }
 
     @Override
-    public boolean applyUpdateEffect(LivingEntity entity, int amplifier) {
+    public boolean applyUpdateEffect(ServerWorld world, LivingEntity entity, int amplifier) {
         StatusEffectInstance state = entity.getStatusEffect(forRace(race));
 
         if (state == null || entity.isDead()) {
@@ -158,7 +159,7 @@ public class RaceChangeStatusEffect extends StatusEffect {
                     }
                     pony.setSpecies(race);
                 } else if (!pony.asEntity().isCreative()) {
-                    if (!entity.damage(Living.living(entity).damageOf(UDamageTypes.TRIBE_SWAP), Float.MAX_VALUE)) {
+                    if (!entity.damage(world, Living.living(entity).damageOf(UDamageTypes.TRIBE_SWAP), Float.MAX_VALUE)) {
                         entity.setHealth(0);
                         pony.setRespawnRace(Race.UNSET);
                         pony.setSpecies(race);
@@ -177,8 +178,8 @@ public class RaceChangeStatusEffect extends StatusEffect {
     }
 
     @Override
-    public void applyInstantEffect(@Nullable Entity source, @Nullable Entity attacker, LivingEntity target, int amplifier, double proximity) {
-        applyUpdateEffect(target, amplifier);
+    public void applyInstantEffect(ServerWorld world, @Nullable Entity source, @Nullable Entity attacker, LivingEntity target, int amplifier, double proximity) {
+        applyUpdateEffect(world, target, amplifier);
     }
 
     @Override

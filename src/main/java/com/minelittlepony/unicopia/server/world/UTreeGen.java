@@ -30,7 +30,7 @@ public interface UTreeGen {
                     UniformIntProvider.create(3, 6),
                     0.3f,
                     UniformIntProvider.create(1, 3),
-                    Registries.BLOCK.getOrCreateEntryList(BlockTags.MANGROVE_LOGS_CAN_GROW_THROUGH)
+                    Registries.BLOCK.getOrThrow(BlockTags.MANGROVE_LOGS_CAN_GROW_THROUGH)
             ), new JungleFoliagePlacer(
                     ConstantIntProvider.create(3),
                     ConstantIntProvider.create(2),

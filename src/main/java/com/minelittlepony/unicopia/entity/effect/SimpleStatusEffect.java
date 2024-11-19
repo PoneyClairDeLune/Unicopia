@@ -16,7 +16,7 @@ public class SimpleStatusEffect extends StatusEffect {
     }
 
     protected RegistryEntry<StatusEffect> getEntry(Entity entity) {
-        return entity.getRegistryManager().get(RegistryKeys.STATUS_EFFECT).getEntry(this);
+        return entity.getRegistryManager().getOrThrow(RegistryKeys.STATUS_EFFECT).getEntry(this);
     }
 
     @Override

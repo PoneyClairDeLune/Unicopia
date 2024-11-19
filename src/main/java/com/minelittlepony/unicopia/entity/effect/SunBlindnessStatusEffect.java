@@ -12,6 +12,7 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffectCategory;
 import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.server.world.ServerWorld;
 
 public class SunBlindnessStatusEffect extends SimpleStatusEffect {
     public static final int MAX_DURATION = 250;
@@ -21,7 +22,7 @@ public class SunBlindnessStatusEffect extends SimpleStatusEffect {
     }
 
     @Override
-    public boolean applyUpdateEffect(LivingEntity entity, int amplifier) {
+    public boolean applyUpdateEffect(ServerWorld world, LivingEntity entity, int amplifier) {
         StatusEffectInstance state = entity.getStatusEffect(getEntry(entity));
 
         if (state == null || isSunImmune(entity)) {
@@ -32,7 +33,7 @@ public class SunBlindnessStatusEffect extends SimpleStatusEffect {
             if (!hasSunExposure(entity)) {
                 entity.setStatusEffect(new StatusEffectInstance(getEntry(entity), (int)(state.getDuration() * 0.8F), Math.max(1, amplifier - 1), true, false), entity);
             } else {
-                entity.damage(Living.living(entity).damageOf(amplifier == 2 ? UDamageTypes.SUN : UDamageTypes.SUNLIGHT), amplifier / 5F);
+                entity.damage(world, Living.living(entity).damageOf(amplifier == 2 ? UDamageTypes.SUN : UDamageTypes.SUNLIGHT), amplifier / 5F);
             }
         }
 

@@ -13,7 +13,7 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.vehicle.BoatEntity;
 import net.minecraft.util.math.MathHelper;
 
-public class AirBalloonEntityModel extends EntityModel<AirBalloonEntity> {
+public class AirBalloonEntityModel extends EntityModel<AirBalloonEntityRenderer.State> {
 
     private final ModelPart root;
     private ModelPart main;
@@ -29,6 +29,7 @@ public class AirBalloonEntityModel extends EntityModel<AirBalloonEntity> {
     private final List<ModelPart> sandbags;
 
     public AirBalloonEntityModel(ModelPart root) {
+        super(root);
         this.root = root;
         isBurner = root.hasChild("burner");
         isSandbags = root.hasChild("sandbag_ne");

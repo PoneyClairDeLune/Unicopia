@@ -21,6 +21,7 @@ import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.predicate.entity.EntityPredicates;
 import net.minecraft.registry.RegistryKey;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.ActionResult;
@@ -228,8 +229,10 @@ public class AirBalloonEntity extends MobEntity implements EntityCollisions.Comp
                 setInflation(inflation);
             }
 
-            if (activeFuel <= 0 && !fuelItems.isEmpty()) {
-                activeFuel = FurnaceBlockEntity.createFuelTimeMap().getOrDefault(fuelItems.remove(0).getItem(), 0);
+            if (getWorld() instanceof ServerWorld sw) {
+                if (activeFuel <= 0 && !fuelItems.isEmpty()) {
+                    activeFuel = sw.getFuelRegistry().getFuelTicks(fuelItems.remove(0));
+                }
             }
 
             if (activeFuel > -6 && age % 2 == 0) {
@@ -329,13 +332,13 @@ public class AirBalloonEntity extends MobEntity implements EntityCollisions.Comp
     }
 
     @Override
-    public boolean damage(DamageSource source, float amount) {
+    public boolean damage(ServerWorld world, DamageSource source, float amount) {
         if (source.getAttacker() instanceof PlayerEntity player && player.getAbilities().creativeMode) {
-            dropInventory();
+            dropInventory(world);
             remove(RemovalReason.KILLED);
             return true;
         }
-        if (super.damage(source, amount)) {
+        if (super.damage(world, source, amount)) {
             hurtTime = 0;
             maxHurtTime = 0;
             return true;
@@ -432,7 +435,9 @@ public class AirBalloonEntity extends MobEntity implements EntityCollisions.Comp
 
         if (stack.isIn(ConventionalItemTags.SHEAR_TOOLS) && hasBalloon()) {
             stack.damage(1, player, getSlotForHand(hand));
-            dropStack(BalloonDesignComponent.set(UItems.GIANT_BALLOON.getDefaultStack(), new BalloonDesignComponent(getDesign(), true)));
+            if (getWorld() instanceof ServerWorld sw) {
+                dropStack(sw, BalloonDesignComponent.set(UItems.GIANT_BALLOON.getDefaultStack(), new BalloonDesignComponent(getDesign(), true)));
+            }
             setDesign(BalloonDesign.NONE);
             playSound(USounds.ENTITY_HOT_AIR_BALLOON_EQUIP_CANOPY.value(), 1, 1);
             if (!player.isSneaky()) {
@@ -456,8 +461,8 @@ public class AirBalloonEntity extends MobEntity implements EntityCollisions.Comp
             return ActionResult.SUCCESS;
         }
 
-        if (hasBurner()) {
-            int fuel = FurnaceBlockEntity.createFuelTimeMap().getOrDefault(stack.getItem(), 0);
+        if (hasBurner() && getWorld() instanceof ServerWorld sw) {
+            int fuel = sw.getFuelRegistry().getFuelTicks(stack);
             if (fuel > 0) {
                 if (fuelItems.size() < 64) {
                     fuelItems.add(stack.splitUnlessCreative(1, player));
@@ -473,17 +478,17 @@ public class AirBalloonEntity extends MobEntity implements EntityCollisions.Comp
     }
 
     @Override
-    protected void dropInventory() {
-        dropStack(getPickBlockStack());
-        if (getWorld().getGameRules().getBoolean(GameRules.DO_ENTITY_DROPS)) {
+    protected void dropInventory(ServerWorld world) {
+        dropStack(world, getPickBlockStack());
+        if (world.getGameRules().getBoolean(GameRules.DO_ENTITY_DROPS)) {
             ItemStack lantern = getStackInHand(Hand.MAIN_HAND);
             setStackInHand(Hand.MAIN_HAND, ItemStack.EMPTY);
-            dropStack(lantern);
+            dropStack(world, lantern);
             if (hasBalloon()) {
-                dropStack(BalloonDesignComponent.set(UItems.GIANT_BALLOON.getDefaultStack(), new BalloonDesignComponent(getDesign(), true)));
+                dropStack(world, BalloonDesignComponent.set(UItems.GIANT_BALLOON.getDefaultStack(), new BalloonDesignComponent(getDesign(), true)));
                 setDesign(BalloonDesign.NONE);
             }
-            fuelItems.forEach(this::dropStack);
+            fuelItems.forEach(s -> dropStack(world, s));
             fuelItems.clear();
         }
     }
@@ -612,20 +617,12 @@ public class AirBalloonEntity extends MobEntity implements EntityCollisions.Comp
         return MultiBox.of(box, boxes);
     }
 
-    @Override
-    public Box getVisibilityBoundingBox() {
-        if (hasBalloon()) {
-            return getBalloonBoundingBox().withMinY(getY());
-        }
-        return getInteriorBoundingBox();
-    }
-
-    protected Box getInteriorBoundingBox() {
+    public Box getInteriorBoundingBox() {
         Box box = MultiBox.unbox(getBoundingBox());
         return box.withMinY(box.minY - 0.05).contract(0.15, 0, 0.15);
     }
 
-    protected Box getBalloonBoundingBox() {
+    public Box getBalloonBoundingBox() {
         float inflation = getInflation(1);
         return MultiBox.unbox(getBoundingBox())
                 .offset(0.125, 7.3 * inflation, 0.125)
