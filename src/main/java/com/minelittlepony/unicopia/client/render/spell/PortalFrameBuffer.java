@@ -6,7 +6,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
-import org.joml.Matrix4fStack;
+import org.joml.Quaternionf;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -24,13 +24,11 @@ import com.minelittlepony.unicopia.mixin.client.MixinMinecraftClient;
 import com.mojang.blaze3d.platform.GlConst;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.systems.VertexSorter;
-
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.SimpleFramebuffer;
-import net.minecraft.client.option.Perspective;
 import net.minecraft.client.render.BackgroundRenderer;
 import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.BufferRenderer;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.Frustum;
 import net.minecraft.client.render.Tessellator;
@@ -49,7 +47,7 @@ import net.minecraft.util.math.Vec3d;
 
 class PortalFrameBuffer implements AutoCloseable {
     private static final LoadingCache<UUID, PortalFrameBuffer> CACHE = CacheBuilder.newBuilder()
-            .expireAfterAccess(10, TimeUnit.SECONDS)
+            .expireAfterAccess(1, TimeUnit.HOURS)
             .<UUID, PortalFrameBuffer>removalListener(n -> n.getValue().close())
             .build(CacheLoader.from(PortalFrameBuffer::new));
 
@@ -67,11 +65,11 @@ class PortalFrameBuffer implements AutoCloseable {
     @Nullable
     private SimpleFramebuffer framebuffer;
     @Nullable
-    private SimpleFramebuffer backgroundBuffer;
-    @Nullable
     private WorldRenderer renderer;
     @Nullable
     private ClientWorld world;
+
+    private final Camera camera = new Camera();
 
     private boolean closed;
 
@@ -87,11 +85,12 @@ class PortalFrameBuffer implements AutoCloseable {
     public void draw(MatrixStack matrices, VertexConsumerProvider vertices) {
         matrices.translate(0, -0.001, 0);
 
+        RenderSystem.assertOnRenderThread();
+        GlStateManager._colorMask(true, true, true, false);
+        GlStateManager._enableDepthTest();
+        GlStateManager._disableCull();
+
         if (!(closed || framebuffer == null)) {
-            RenderSystem.assertOnRenderThread();
-            GlStateManager._colorMask(true, true, true, false);
-            GlStateManager._enableDepthTest();
-            GlStateManager._disableCull();
             Tessellator tessellator = RenderSystem.renderThreadTesselator();
             float uScale = (float)framebuffer.viewportWidth / (float)framebuffer.textureWidth;
             float vScale = (float)framebuffer.viewportHeight / (float)framebuffer.textureHeight;
@@ -102,16 +101,17 @@ class PortalFrameBuffer implements AutoCloseable {
 
             RenderSystem.setTextureMatrix(SphereModel.DISK.getTextureMatrix());
             SphereModel.DISK.render(matrices, buffer, 1, 2F, Colors.WHITE);
-            buffer.end();
+            BufferRenderer.drawWithGlobalProgram(buffer.end());
 
             client.getTextureManager().bindTexture(PlayerScreenHandler.BLOCK_ATLAS_TEXTURE);
-            GlStateManager._enableCull();
-            GlStateManager._colorMask(true, true, true, true);
-            GlStateManager._depthMask(true);
         } else {
             Vec3d skyColor = client.world.getSkyColor(client.gameRenderer.getCamera().getPos(), client.getRenderTickCounter().getTickDelta(false));
             SphereModel.DISK.render(matrices, vertices.getBuffer(RenderLayers.getMagicShield()), 0, 0, 2, Color.argbToHex(1, (float)skyColor.x, (float)skyColor.y, (float)skyColor.z));
         }
+
+        GlStateManager._enableCull();
+        GlStateManager._colorMask(true, true, true, true);
+        GlStateManager._depthMask(true);
     }
 
     public void build(PortalSpell spell, Caster<?> caster, EntityReference.EntityValues<Entity> target) {
@@ -152,25 +152,19 @@ class PortalFrameBuffer implements AutoCloseable {
                     return;
                 }
 
-                var fov = client.options.getFov();
-                int originalFov = fov.getValue();
-                fov.setValue(110);
-
                 Camera camera = client.gameRenderer.getCamera();
 
                 Entity cameraEntity = UEntities.CAST_SPELL.create(caster.asWorld());
-                Vec3d offset = new Vec3d(0, 0, -0.1F).rotateY(-spell.getTargetYaw() * MathHelper.RADIANS_PER_DEGREE);
+                Vec3d offset = new Vec3d(0, 1, -0.1F).rotateY(-spell.getTargetYaw() * MathHelper.RADIANS_PER_DEGREE);
 
-                float yaw = spell.getTargetYaw() + camera.getYaw() - spell.getYaw() + 180;
-                float pitch = spell.getTargetPitch() + (camera.getPitch() - spell.getPitch()) * 1.65F;
+                float yaw = spell.getTargetYaw() + camera.getYaw() - spell.getYaw();
+                float pitch = spell.getTargetPitch();//MathHelper.clamp(spell.getTargetPitch() + (camera.getPitch() - spell.getPitch()) * 0.65F, -90, 90) + 90;
 
                 cameraEntity.setPosition(target.pos().add(offset));
-                cameraEntity.setPitch(90 + pitch);
-                cameraEntity.setYaw(yaw);
+                cameraEntity.setPitch(pitch % 180);
+                cameraEntity.setYaw((yaw + 180) % 360);
 
                 drawWorld(cameraEntity, 400, 400);
-
-                fov.setValue(originalFov);
             } finally {
                 recursionCount--;
             }
@@ -178,26 +172,16 @@ class PortalFrameBuffer implements AutoCloseable {
     }
 
     private void drawWorld(Entity cameraEntity, int width, int height) {
-        Entity oldCameraEntity = client.cameraEntity;
         Window window = client.getWindow();
 
-        int i = window.getFramebufferWidth();
-        int j = window.getFramebufferHeight();
+        int globalFramebufferWidth = window.getFramebufferWidth();
+        int globalFramebufferHeight = window.getFramebufferHeight();
 
-        width = i;
-        height = j;
-
-        Perspective perspective = client.options.getPerspective();
-        Matrix4fStack view = RenderSystem.getModelViewStack();
+        width = globalFramebufferWidth;
+        height = globalFramebufferHeight;
 
         Matrix4f proj = RenderSystem.getProjectionMatrix();
-
-        int fbo = client.getFramebuffer().fbo;
-        Camera camera = client.gameRenderer.getCamera();
-
-        WorldRenderer globalRenderer = client.worldRenderer;
         try {
-            client.cameraEntity = cameraEntity;
             client.getFramebuffer().endWrite();
 
             if (framebuffer == null) {
@@ -206,15 +190,8 @@ class PortalFrameBuffer implements AutoCloseable {
                 framebuffer.clear(MinecraftClient.IS_SYSTEM_MAC);
             }
 
-            view.pushMatrix();
-            view.identity();
-            RenderSystem.applyModelViewMatrix();
-
             window.setFramebufferWidth(width);
             window.setFramebufferHeight(height);
-            client.getFramebuffer().fbo = framebuffer.fbo;
-
-            client.options.setPerspective(Perspective.FIRST_PERSON);
 
             RenderSystem.clear(GlConst.GL_DEPTH_BUFFER_BIT | GlConst.GL_COLOR_BUFFER_BIT, MinecraftClient.IS_SYSTEM_MAC);
             framebuffer.beginWrite(true);
@@ -224,17 +201,40 @@ class PortalFrameBuffer implements AutoCloseable {
             if (renderer == null) {
                 renderer = new WorldRenderer(client, client.getEntityRenderDispatcher(), client.getBlockEntityRenderDispatcher(), client.getBufferBuilders());
             }
-            if (client.world != world) {
-                world = client.world;
-                renderer.setWorld(client.world);
+            if (cameraEntity.getWorld() != world) {
+                world = (ClientWorld)cameraEntity.getWorld();
+                renderer.setWorld(world);
             }
-            ((MixinMinecraftClient)client).setWorldRenderer(renderer);
+            //((MixinMinecraftClient)client).setWorldRenderer(renderer);
 
-            renderer.scheduleBlockRenders((int)cameraEntity.getX() / 16, (int)cameraEntity.getY() / 16, (int)cameraEntity.getZ() / 16);
+            var tickCounter = client.getRenderTickCounter();
 
-            client.gameRenderer.setRenderHand(false);
+            camera.update(world, cameraEntity, false, false, 1);
 
-            client.gameRenderer.renderWorld(client.getRenderTickCounter());
+            double fov = 110;
+            Matrix4f projectionMatrix = client.gameRenderer.getBasicProjectionMatrix(fov);
+            Matrix4f cameraTransform = new Matrix4f().rotation(camera.getRotation().conjugate(new Quaternionf()));
+
+            client.gameRenderer.loadProjectionMatrix(projectionMatrix);
+            /*renderer.scheduleBlockRenders(
+                    ChunkSectionPos.getSectionCoord((int)cameraEntity.getX()),
+                    ChunkSectionPos.getSectionCoord((int)cameraEntity.getY()),
+                    ChunkSectionPos.getSectionCoord((int)cameraEntity.getZ())
+            );*/
+            renderer.setupFrustum(
+                    camera.getPos(),
+                    cameraTransform,
+                    client.gameRenderer.getBasicProjectionMatrix(Math.max(fov, this.client.options.getFov().getValue().intValue()))
+            );
+            try {
+                renderer.render(tickCounter, false, camera, client.gameRenderer,
+                        client.gameRenderer.getLightmapTextureManager(),
+                        cameraTransform,
+                        projectionMatrix
+                );
+            } catch (Throwable t) {
+                close();
+            }
 
             // Strip transparency
             RenderSystem.colorMask(false, false, false, true);
@@ -244,48 +244,27 @@ class PortalFrameBuffer implements AutoCloseable {
 
             framebuffer.endWrite();
         } finally {
-            ((MixinMinecraftClient)client).setWorldRenderer(globalRenderer);
-
-            client.getFramebuffer().fbo = fbo;
             client.getFramebuffer().beginWrite(true);
+            client.gameRenderer.loadProjectionMatrix(proj);
 
-            view.popMatrix();
-            RenderSystem.applyModelViewMatrix();
-            RenderSystem.setProjectionMatrix(proj, VertexSorter.BY_Z);
-
-            window.setFramebufferWidth(i);
-            window.setFramebufferHeight(j);
-
-            client.options.setPerspective(perspective);
-            client.cameraEntity = oldCameraEntity;
-
-            if (recursionCount <= 1) {
-                client.gameRenderer.setRenderHand(true);
-                camera.update(client.world,
-                        client.getCameraEntity() == null ? client.player : client.getCameraEntity(),
-                        perspective.isFirstPerson(),
-                        perspective.isFrontView(),
-                        1
-                );
-            }
+            window.setFramebufferWidth(globalFramebufferWidth);
+            window.setFramebufferHeight(globalFramebufferHeight);
         }
     }
 
     @Override
     public void close() {
-        closed = true;
-        if (framebuffer != null) {
-            SimpleFramebuffer fb = framebuffer;
-            framebuffer = null;
-            fb.delete();
-        }
-        if (backgroundBuffer != null) {
-            SimpleFramebuffer fb = backgroundBuffer;
-            backgroundBuffer = null;
-            fb.delete();
-        }
-        if (renderer != null) {
-            renderer.close();
+        synchronized (client) {
+            closed = true;
+            if (framebuffer != null) {
+                SimpleFramebuffer fb = framebuffer;
+                framebuffer = null;
+                fb.delete();
+            }
+            if (renderer != null) {
+                renderer.getChunkBuilder().stop();
+                renderer.close();
+            }
         }
     }
 }
