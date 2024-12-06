@@ -28,8 +28,8 @@ abstract class MixinEnchantmentHelper {
         });
     }
 
-    @Inject(method = "getPossibleEntries", at = @At("RETURN"))
+    /* @Inject(method = "getPossibleEntries", at = @At("RETURN"))
     private static void onGetPossibleEntries(int power, ItemStack stack, boolean treasureAllowed, CallbackInfoReturnable<List<EnchantmentLevelEntry>> info) {
         info.getReturnValue().removeIf(entry -> !entry.enchantment.isAcceptableItem(stack));
-    }
+    } */
 }
